@@ -1,0 +1,15 @@
+[Unit]
+Description=pynetmap server daemon
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/tmp/
+ExecStart=/usr/bin/pynetmap-server
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+chmod +x /usr/bin/pynetmap-server
+chmod +x /usr/bin/pynetmap-server-bin/*
