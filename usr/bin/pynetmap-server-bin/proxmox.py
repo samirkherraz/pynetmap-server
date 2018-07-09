@@ -62,7 +62,6 @@ class ProxmoxDaemon(Thread):
             el["__CHILDREN__"][k]["CPU Usage"] = "unknown"
             el["__CHILDREN__"][k]["NB CPU"] = "unknown"
             el["__CHILDREN__"][k]["Memory"] = "unknown"
-            el["__CHILDREN__"][k]["IP"] = "unknown"
         try:
             if str(el["IP"]).strip() == "" or str(el["Password"]).strip() == "" or str(el["User"]).strip() == "":
                 return

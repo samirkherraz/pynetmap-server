@@ -5,13 +5,18 @@ import subprocess
 import time
 import socket
 import struct
+from threading import Thread, Event
 
 
-class Tunnel:
+class Tunnel(Thread):
     def __init__(self, l):
+        Thread.__init__(self)
         self.passed = []
+        self.ips = []
         self.get_my_id()
-        self.process(l)
+        self.store = l
+        self._stop = Event()
+        self._notify = Event()
 
     def core_writter(self, elm):
         try:
@@ -52,11 +57,20 @@ class Tunnel:
         for elm in lst.find_by_schema("Serveur"):
             self.core_writter(lst.find_by_id(elm))
 
-    def start(self):
-        os.system(TUNNEL_HEADER)
-        for cmd in self.passed:
-            print cmd
-            os.system(cmd)
+    def run(self):
+        while not self._stop.isSet():
+            self.process(self.store)
+            os.system(TUNNEL_HEADER)
+            for cmd in self.passed:
+                print cmd
+                os.system(cmd)
+            self._notify.wait()
+            self._notify.clear()
+
+    def notify(self):
+        self._notify.set()
 
     def stop(self):
+        self._stop.set()
+        self._notify.set()
         os.system(TUNNEL_HEADER)

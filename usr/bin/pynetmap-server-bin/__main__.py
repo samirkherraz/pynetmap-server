@@ -13,6 +13,7 @@ import random
 import time
 import json
 import sys
+import ssl
 
 
 class Boot:
@@ -52,10 +53,12 @@ class Boot:
     def push_data(self, data):
         self.store.replace_data(data)
         self.store.write()
+        self.tunnel.notify()
 
     def push_schema(self, data):
         self.store.replace_schema(data)
         self.store.write()
+        self.tunnel.notify()
 
     def last_data_update(self):
         return self.store.last_data_timestamp()
@@ -144,6 +147,12 @@ class KodeFunHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.replay(Server.pull_schema())
             else:
                 self.replay({"AUTHORIZATION": False})
+        elif self.path.endswith("reload"):
+            if self.verify_con():
+                Server.tunnel.notify()
+                self.replay({"STATUS": "OK"})
+            else:
+                self.replay({"AUTHORIZATION": False})
 
         return
 
@@ -152,6 +161,10 @@ def run():
     print('http server is starting...')
     server_address = ('0.0.0.0', LISTENING_PORT)
     httpd = HTTPServer(server_address, KodeFunHTTPRequestHandler)
+    httpd.socket = ssl.wrap_socket(httpd.socket,
+                                   keyfile="/etc/pynetmap-server/server.key",
+                                   certfile="/etc/pynetmap-server/server.crt", server_side=True)
+
     print('http server is running...')
     httpd.serve_forever()
 
