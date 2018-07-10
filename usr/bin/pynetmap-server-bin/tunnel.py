@@ -49,8 +49,10 @@ class Tunnel(Thread):
             self.passed.append(cmd)
 
     def get_my_id(self):
-        lstr = os.popen(
-            " route | cut -d ' ' -f1 | grep '\\.'").read().split("\n")
+        popen = os.popen(
+            " route | cut -d ' ' -f1 | grep '\\.'")
+        lstr = popen.read().split("\n")
+        popen.close()
         self.ips = ' '.join(lstr).split()
 
     def process(self, lst):

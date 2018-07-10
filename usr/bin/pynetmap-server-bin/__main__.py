@@ -150,6 +150,7 @@ class KodeFunHTTPRequestHandler(BaseHTTPRequestHandler):
         elif self.path.endswith("reload"):
             if self.verify_con():
                 Server.tunnel.notify()
+                Server.tunnel.wait()
                 self.replay({"STATUS": "OK"})
             else:
                 self.replay({"AUTHORIZATION": False})
