@@ -206,24 +206,24 @@ class Database:
         try:
             jsonFile = codecs.open(WORKING_DIR+"base.json", "r", "utf-8")
             jsonStr = jsonFile.read()
+            jsonFile.close()
             jsonStr = self.decrypt(jsonStr)
             self._head = json.loads(jsonStr)
-            jsonFile.close()
         except:
             self._head = dict()
 
         jsonFile = codecs.open(WORKING_DIR+"schema.json", "r", "utf-8")
         jsonStr = jsonFile.read()
-        self._schema = json.loads(jsonStr)
         jsonFile.close()
+        self._schema = json.loads(jsonStr)
 
     def write(self):
         copyfile(WORKING_DIR+"base.json", BACKUP_DIR +
                  "base"+str(time.time())+".json")
-        jsonFile = codecs.open(WORKING_DIR+"base.json", "w", "utf-8")
         try:
             jsonStr = json.dumps(self.get_clean())
             jsonStr = self.encrypt(jsonStr)
+            jsonFile = codecs.open(WORKING_DIR+"base.json", "w", "utf-8")
             jsonFile.write(jsonStr)
             jsonFile.close()
         except:

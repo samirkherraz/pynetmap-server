@@ -5,7 +5,7 @@ import subprocess
 import time
 import socket
 import struct
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 
 
 class Tunnel(Thread):
@@ -17,6 +17,7 @@ class Tunnel(Thread):
         self.store = l
         self._stop = Event()
         self._notify = Event()
+        self._lock = Lock()
 
     def core_writter(self, elm):
         try:
@@ -67,12 +68,15 @@ class Tunnel(Thread):
                 print cmd
                 os.system(cmd)
             self._notify.wait()
-            self._notify.clear()
+            with self._lock:
+                self._notify.clear()
 
     def notify(self):
-        self._notify.set()
+        with self._lock:
+            self._notify.set()
 
     def stop(self):
-        self._stop.set()
-        self._notify.set()
-        os.system(TUNNEL_HEADER)
+        with self._lock:
+            self._stop.set()
+            self._notify.set()
+            os.system(TUNNEL_HEADER)
