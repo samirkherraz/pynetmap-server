@@ -73,8 +73,8 @@ class ProxmoxDaemon(Thread):
             return
 
         for node in proxmox.nodes.get():
+            el["__ID__"] = node['node']
             for vm in proxmox.nodes(node['node']).qemu.get():
-                el["__ID__"] = node['node']
                 k = dict()
                 k["Status"] = vm["status"]
                 k["__ID__"] = vm["name"]
@@ -103,4 +103,35 @@ class ProxmoxDaemon(Thread):
                 else:
                     k["__CHILDREN__"] = dict()
                     k["__SCHEMA__"] = "VM"
+                    self.store.add(id, k)
+
+            for vm in proxmox.nodes(node['node']).lxc.get():
+                k = dict()
+                k["Status"] = vm["status"]
+                k["__ID__"] = vm["name"]
+                k["Uptime"] = str(self.format_secs(vm["uptime"]))
+                k["CPU Usage"] = str(self.format_pourcentage(vm["cpu"]))
+                k["NB CPU"] = vm["cpus"]
+                k["Memory"] = self.format_bytes(
+                    vm["mem"]) + " / " + self.format_bytes(vm["maxmem"])
+
+                for i in proxmox.nodes(node['node']).lxc(vm["vmid"]).config.get():
+                    if 'net' in i:
+                        try:
+                            k["IP"] = arp[proxmox.nodes(node['node']).lxc(
+                                vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]]
+                            k["Ethernet"] = i
+                        except:
+                            pass
+
+                old = self.store.find_by_name(
+                    vm["name"], el["__CHILDREN__"])
+                if old != None:
+                    (key, value) = old.items()[0]
+                    value.update(k)
+                    self.store.edit(id, key, value,
+                                    el["__CHILDREN__"])
+                else:
+                    k["__CHILDREN__"] = dict()
+                    k["__SCHEMA__"] = "Container"
                     self.store.add(id, k)
