@@ -7,6 +7,8 @@ import os
 from datetime import datetime, timedelta
 import re
 from const import PROXMOX_UPDATE_INTERVAL
+import paramiko
+import select
 
 
 class ProxmoxDaemon(Thread):
@@ -24,10 +26,16 @@ class ProxmoxDaemon(Thread):
             i = 0
             for el in all:
                 i = i+1
-                thread = Thread(
-                    target=self.process, args=(el, all, arp))
-                thread.setDaemon(True)
-                thread.start()
+                if str(all[el]["System"]) == "Proxmox":
+                    thread = Thread(
+                        target=self.proxmox, args=(el, all, arp))
+                    thread.setDaemon(True)
+                    thread.start()
+                elif str(all[el]["System"]) == "Physical":
+                    thread = Thread(
+                        target=self.physical, args=(el, all, arp))
+                    thread.setDaemon(True)
+                    thread.start()
 
             self._stop.wait(PROXMOX_UPDATE_INTERVAL)
 
@@ -54,7 +62,46 @@ class ProxmoxDaemon(Thread):
     def format_pourcentage(self, number):
         return "{0:.2f}".format(number * 100) + " %"
 
-    def process(self, id, lst, arp):
+    def physical(self, id, lst, arp):
+        el = lst[id]
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+
+            ssh.connect(str(el["IP"]).strip(),
+                        username=str(el["User"]).strip(), password=str(el["Password"]).strip())
+            el["Status"] = 'running'
+
+            nbcpus = int(self.ssh_exec_read(
+                ssh, "cat /proc/cpuinfo | grep processor | wc -l"))
+            totalmem = int(self.ssh_exec_read(
+                ssh, "cat /proc/meminfo | grep 'MemTotal:' | cut -d' ' -f9")) * 1024
+            freemem = int(self.ssh_exec_read(
+                ssh, "cat /proc/meminfo | grep 'MemFree:' | cut -d' ' -f11")) * 1024
+            uptime = self.ssh_exec_read(ssh, "uptime -p")
+
+            el["Memory"] = self.format_bytes(
+                totalmem-freemem) + str(" / ") + self.format_bytes(totalmem)
+            el["NB CPU"] = nbcpus
+            el["Uptime"] = uptime
+            ssh.close()
+            print " > UPDATE [ " + str(el["__ID__"]) + " :: SUCCESS ]"
+
+        except:
+            el["Status"] = 'stopped'
+            print " > UPDATE [ " + str(el["__ID__"]) + " :: FAILD ]"
+
+    def ssh_exec_read(self, ssh, cmd):
+        out = ""
+        ssh_stdin, stdout, ssh_stderr = ssh.exec_command(cmd, get_pty=True)
+        for line in stdout.read().splitlines():
+            if line != "":
+                out += line
+
+        print out
+        return str(out).strip()
+
+    def proxmox(self, id, lst, arp):
         el = lst[id]
         for k in el["__CHILDREN__"]:
             el["__CHILDREN__"][k]["Status"] = "unknown"
@@ -68,12 +115,14 @@ class ProxmoxDaemon(Thread):
             proxmox = ProxmoxAPI(str(el["IP"]).strip(), user=str(el["User"]).strip()+'@pam', password=str(el["Password"]).strip(),
                                  verify_ssl=False)
             el["Status"] = 'running'
+            print " > UPDATE [ " + str(el["__ID__"]) + " :: SUCCESS ]"
         except:
             el["Status"] = 'stopped'
+            print " > UPDATE [ " + str(el["__ID__"]) + " :: FAILD ]"
             return
-        try:
-            for node in proxmox.nodes.get():
-                el["__ID__"] = node['node']
+        for node in proxmox.nodes.get():
+            el["__ID__"] = node['node']
+            try:
                 for vm in proxmox.nodes(node['node']).qemu.get():
                     k = dict()
                     k["Status"] = vm["status"]
@@ -139,3 +188,36 @@ class ProxmoxDaemon(Thread):
                         self.store.add(id, k)
             except:
                 print "WARNING : This node is not supporting LXC"
+            try:
+                for vm in proxmox.nodes(node['node']).openvz.get():
+                    k = dict()
+                    k["Status"] = vm["status"]
+                    k["__ID__"] = vm["name"]
+                    k["Uptime"] = str(self.format_secs(vm["uptime"]))
+                    k["CPU Usage"] = str(self.format_pourcentage(vm["cpu"]))
+                    k["NB CPU"] = vm["cpus"]
+                    k["Memory"] = self.format_bytes(
+                        vm["mem"]) + " / " + self.format_bytes(vm["maxmem"])
+
+                    for i in proxmox.nodes(node['node']).openvz(vm["vmid"]).config.get():
+                        if 'net' in i:
+                            try:
+                                k["IP"] = arp[proxmox.nodes(node['node']).openvz(
+                                    vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]]
+                                k["Ethernet"] = i
+                            except:
+                                pass
+
+                    old = self.store.find_by_name(
+                        vm["name"], el["__CHILDREN__"])
+                    if old != None:
+                        (key, value) = old.items()[0]
+                        value.update(k)
+                        self.store.edit(id, key, value,
+                                        el["__CHILDREN__"])
+                    else:
+                        k["__CHILDREN__"] = dict()
+                        k["__SCHEMA__"] = "Container"
+                        self.store.add(id, k)
+            except:
+                print "WARNING : This node is not supporting OpenVZ"
