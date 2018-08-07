@@ -3,7 +3,7 @@
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import os
 from database import Database
-from proxmox import ProxmoxDaemon
+from monitor import MonitorDaemon
 from tunnel import Tunnel
 from const import ADMIN_PASSWORD, ADMIN_USERNAME, LISTENING_PORT, EXIT_ERROR_CORRUPT_DB, EXIT_ERROR_LOCK, EXIT_SUCCESS
 import signal
@@ -13,11 +13,14 @@ import random
 import time
 import json
 import sys
+
 import ssl
 
 
 class Boot:
     def __init__(self):
+        self.last_data_timestamp = time.time()
+        self.last_schema_timestamp = time.time()
         self.tokens = []
         try:
             self.store = Database()
@@ -27,7 +30,7 @@ class Boot:
             exit(EXIT_ERROR_CORRUPT_DB)
         self.tunnel = Tunnel(self.store)
         self.tunnel.start()
-        self.proxmox = ProxmoxDaemon(self.store)
+        self.proxmox = MonitorDaemon(self)
         self.proxmox.start()
 
     def auth(self, username, password):
@@ -39,6 +42,9 @@ class Boot:
             return token
         else:
             return None
+
+    def update(self):
+        self.last_data_timestamp = time.time()
 
     def stop(self):
         self.tunnel.stop()
@@ -53,18 +59,20 @@ class Boot:
     def push_data(self, data):
         self.store.replace_data(data)
         self.store.write()
-        self.tunnel.notify()
+        self.last_data_timestamp = time.time()
+        # self.tunnel.notify()
 
     def push_schema(self, data):
         self.store.replace_schema(data)
         self.store.write()
-        self.tunnel.notify()
+        self.last_schema_timestamp = time.time()
+        # self.tunnel.notify()
 
     def last_data_update(self):
-        return self.store.last_data_timestamp()
+        return self.last_data_timestamp
 
     def last_schema_update(self):
-        return self.store.last_schema_timestamp()
+        return self.last_schema_timestamp
 
 
 class KodeFunHTTPRequestHandler(BaseHTTPRequestHandler):

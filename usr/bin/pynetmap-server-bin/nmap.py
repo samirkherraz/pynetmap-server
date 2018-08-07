@@ -5,6 +5,15 @@ import threading
 
 
 class NMap:
+    def ssh_exec_read(self, ssh, cmd):
+        out = ""
+        ssh_stdin, stdout, ssh_stderr = ssh.exec_command(cmd, get_pty=True)
+        for line in stdout.read().splitlines():
+            if line != "":
+                out += line
+
+        return str(out).strip()
+
     def __init__(self, l):
         self.passed = []
         self.arp = dict()
