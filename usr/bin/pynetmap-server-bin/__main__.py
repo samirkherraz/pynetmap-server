@@ -30,6 +30,7 @@ class Boot:
             exit(EXIT_ERROR_CORRUPT_DB)
         self.tunnel = Tunnel(self.store)
         self.tunnel.start()
+        self.tunnel.wait()
         self.proxmox = MonitorDaemon(self)
         self.proxmox.start()
 

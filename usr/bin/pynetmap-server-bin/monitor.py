@@ -101,21 +101,22 @@ class MonitorDaemon(Thread):
             el["Status"] = 'running'
 
             cpuusage = self.ssh_exec_read(
-                ssh, "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}' ")
+                ssh, """grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}' """)
 
             openports = self.ssh_exec_read(
-                ssh, 'netstat -lt4p | grep -oh "0.0.0.0:\w\w*" ').replace("0.0.0.0:", "")
+                ssh, """netstat -lnp | awk '$1 == "tcp" && $4 ~ "0.0.0.0"{split($7,program,"/");split($4,port,":");printf "%s|%s\\n",program[2],port[2]}'""")
 
             mounts = self.ssh_exec_read(
-                ssh, 'df -h |  grep -v "tmpfs" | grep -v "rootfs" |  grep -v "/$" | grep -oh "[0-9][0-9]*% .*" | grep -v "/dev"  | sed -e "s/ /\t/g"')
+                ssh, """df -h |  grep -v "tmpfs\|udev\|rootfs" | awk 'NR > 1 && $6 != "/"{printf "%s|%s / %s|%s\\n",$6,$3,$2,$5}'""")
 
             disk = self.ssh_exec_read(
-                ssh, 'df -h | grep -v "tmpfs" | grep -v "rootfs" |  grep "/$" | grep -oh "[0-9][0-9]*%" | grep -v "/dev" ')
+                ssh, """df -h |  grep -v "tmpfs\|udev\|rootfs" | awk '$NF=="/"{printf "%d\\n",$5}' """)
 
             nbcpus = int(self.ssh_exec_read(
-                ssh, "cat /proc/cpuinfo | grep processor | wc -l"))
+                ssh, """cat /proc/cpuinfo | grep processor | wc -l"""))
+
             mem = self.ssh_exec_read(
-                ssh, "free | grep Mem | awk '{print ($2-$7)/$2 * 100.0}'")
+                ssh, """free -m | awk 'NR==2{printf "%.2f\\n", $3*100/$2 }'""")
             uptime = self.ssh_exec_read(ssh, "uptime | cut -d',' -f1")
             ssh.close()
 
@@ -156,14 +157,13 @@ class MonitorDaemon(Thread):
         output = stdout.read()
         if "command not found" in output:
             ssh_stdin, stdout, ssh_stderr = ssh.exec_command(
-                'apt-get update && apt-get install net-tools -y ', get_pty=True)
+                'apt-get update && apt-get install net-tools bsdmainutils -y ', get_pty=True)
             for line in stdout.read().splitlines():
                 print line
             return self.ssh_exec_read(ssh, cmd)
         for line in output.splitlines():
             if line.strip() != "":
                 out += line.strip() + "\n"
-
         return str(out).strip()
 
     def proxmox(self, id, lst, arp):
