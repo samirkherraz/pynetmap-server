@@ -6,9 +6,10 @@ import threading
 import os
 from datetime import datetime, timedelta
 import re
-from const import UPDATE_INTERVAL
+from const import UPDATE_INTERVAL, HISTORY
 import paramiko
 import select
+import datetime
 
 
 class MonitorDaemon(Thread):
@@ -53,25 +54,6 @@ class MonitorDaemon(Thread):
         self._stop.set()
         self.join()
 
-    def format_bytes(self, bytes_num):
-        sizes = ["B", "KB", "MB", "GB", "TB"]
-
-        i = 0
-        dblbyte = bytes_num
-
-        while (i < len(sizes) and bytes_num >= 1024):
-            dblbyte = bytes_num / 1024.0
-            i = i + 1
-            bytes_num = bytes_num / 1024
-
-        return str(round(dblbyte, 2)) + " " + sizes[i]
-
-    def format_secs(self, uptime):
-        return timedelta(seconds=uptime)
-
-    def format_pourcentage(self, number):
-        return "{0:.2f}".format(number * 100) + " %"
-
     def physical(self, id, lst, arp):
         try:
             os.system("rm ~/.ssh/known_hosts")
@@ -100,7 +82,24 @@ class MonitorDaemon(Thread):
             el["Status"] = 'stopped'
             el["__SSH__"] = "No"
 
+    def history_append(self, el, key, value):
+        if key not in el.keys() or type(el[key]) is not list:
+            el[key] = []
+        summ = 0
+        i = 0
+        if len(el[key]) > HISTORY:
+            while len(el[key]) > HISTORY/2:
+                i += 1
+                summ += el[key].pop()
+            if i > 0:
+                el[key][0] = (el[key][0] + summ) / (i+1)
+        el[key].append(value)
+
     def services(self, el, source):
+        if el["Status"] != "running":
+            status = 0
+        else:
+            status = 100
         try:
             os.system("rm ~/.ssh/known_hosts")
         except:
@@ -121,6 +120,7 @@ class MonitorDaemon(Thread):
 
             el["Status"] = 'running'
             el["__SSH__"] = "Yes"
+            status = 100
 
             try:
                 os = self.ssh_exec_read(
@@ -140,13 +140,9 @@ class MonitorDaemon(Thread):
                     print "> [ " + str(el["__ID__"]) + \
                         " :: ERROR OPEN PORTS   ]"
                 try:
-                    if "Memory" not in el.keys() or type(el["Memory"]) is not list:
-                        el["Memory"] = []
-                    while len(el["Memory"]) > 100:
-                        el["Memory"].pop()
                     mem = self.ssh_exec_read(
-                        ssh, """free -m | awk 'NR==2{printf "%.2f\\n", $3*100/$2 }'""")
-                    el["Memory"].append(mem)
+                        ssh, """vmstat -s | awk  '$0 ~ /total memory/ {total=$1 } $0 ~/free memory/ {free=$1} $0 ~/buffer memory/ {buffer=$1} $0 ~/cache/ {cache=$1} END{print (total-free-buffer-cache)/total*100}'""")
+                    self.history_append(el, "Memory", mem)
                 except Exception as e:
                     print "> [ " + str(el["__ID__"]) + " :: ERROR MEMORY   ]"
 
@@ -158,16 +154,12 @@ class MonitorDaemon(Thread):
                     print "> [ " + str(el["__ID__"]) + " :: ERROR NG CPU  ]"
 
                 try:
-                    if "CPU Usage" not in el.keys() or type(el["CPU Usage"]) is not list:
-                        el["CPU Usage"] = []
-                    while len(el["CPU Usage"]) > 100:
-                        el["CPU Usage"].pop()
+
                     cpuusage = self.ssh_exec_read(
                         ssh, """grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}' """)
-                    el["CPU Usage"].append(cpuusage)
+                    self.history_append(el, "CPU Usage", cpuusage)
                 except Exception as e:
-                    print "> [ " + str(el["__ID__"]) + \
-                        " :: ERROR CPU USAGE   ]"
+                    print "> [ " + str(el["__ID__"]) + " :: ERROR CPU USAGE ]"
 
                 try:
                     uptime = self.ssh_exec_read(ssh, "uptime | cut -d',' -f1")
@@ -176,23 +168,18 @@ class MonitorDaemon(Thread):
                     print "> [ " + str(el["__ID__"]) + " :: ERROR UPTIME   ]"
 
                 try:
-                    if "Disk" not in el.keys() or type(el["Disk"]) is not list:
-                        el["Disk"] = []
-                    while len(el["Disk"]) > 100:
-                        el["Disk"].pop()
                     disk = self.ssh_exec_read(
                         ssh, """df -h |  grep -v "tmpfs\|udev\|rootfs\|none" | awk '$NF=="/"{printf "%d\\n",$5}' """)
-                    el["Disk"].append(disk)
+                    self.history_append(el, "Disk", disk)
                 except Exception as e:
                     print "> [ " + str(el["__ID__"]) + " :: ERROR DISK  ]"
 
                 try:
                     openports = self.ssh_exec_read(
-                        ssh, """sockstat -l | awk 'split($5,port,":"){if( port[1] ~ "127.0.0.1") { targ="Local Only" } else { targ="WAN Interface" }} NR > 1 && !seen[$2port[2]]++ {printf "%s|%s|%s\\n",toupper($2),port[2],targ } ' """)
+                        ssh, """sockstat -l | awk 'split($5,port,":"){if( port[1] ~ "127.0.0.1") { targ="Local Only" } else { targ="WAN Interface" }} NR > 1 && NR < 15 && !seen[$2port[2]]++ {printf "%s|%s|%s\\n",toupper($2),port[2],targ } ' """)
                     el["Services"] = openports
                 except Exception as e:
-                    print "> [ " + str(el["__ID__"]) + \
-                        " :: ERROR OPEN PORTS   ]"
+                    print "> [ " + str(el["__ID__"]) + " :: ERROR OPEN PORTS ]"
                 try:
                     mounts = self.ssh_exec_read(
                         ssh, """df -h |  grep -v "tmpfs\|udev\|rootfs\|none" | awk '(NR > 1 && $6 != "/"){printf "%s|%s / %s|%s\\n",$6,$3,$2,$5}'""")
@@ -208,6 +195,8 @@ class MonitorDaemon(Thread):
         except Exception as e:
             el["__SSH__"] = "No"
 
+        self.history_append(el, "Status History", status)
+
     def ssh_exec_read(self, ssh, cmd):
         out = ""
         ssh_stdin, stdout, ssh_stderr = ssh.exec_command(cmd, get_pty=True)
@@ -219,12 +208,9 @@ class MonitorDaemon(Thread):
 
     def proxmox_import(self, el, source):
         try:
-            if "Memory" not in el.keys() or type(el["Memory"]) is not list:
-                el["Memory"] = []
-            while len(el["Memory"]) > 100:
-                el["Memory"].pop()
             mem = float(float(source["mem"]) / float(source["maxmem"])) * 100
-            el["Memory"].append(mem)
+            self.history_append(el, "Memory", mem)
+
         except Exception as e:
             print "> [ " + str(el["__ID__"]) + " :: ERROR MEMORY   ]"
 
@@ -241,12 +227,8 @@ class MonitorDaemon(Thread):
             print "> [ " + str(el["__ID__"]) + " :: ERROR NG CPU  ]"
 
         try:
-            if "CPU Usage" not in el.keys() or type(el["CPU Usage"]) is not list:
-                el["CPU Usage"] = []
-            while len(el["CPU Usage"]) > 100:
-                el["CPU Usage"].pop()
             cpuusage = float(source["cpu"]) * 100
-            el["CPU Usage"].append(cpuusage)
+            self.history_append(el, "CPU Usage", cpuusage)
         except Exception as e:
             print "> [ " + str(el["__ID__"]) + " :: ERROR CPU USAGE   ]"
 
@@ -257,13 +239,9 @@ class MonitorDaemon(Thread):
             print "> [ " + str(el["__ID__"]) + " :: ERROR UPTIME   ]"
 
         try:
-            if "Disk" not in el.keys() or type(el["Disk"]) is not list:
-                el["Disk"] = []
-            while len(el["Disk"]) > 100:
-                el["Disk"].pop()
             disk = float(float(source["disk"]) /
                          float(source["maxdisk"])) * 100
-            el["Disk"].append(disk)
+            self.history_append(el, "Disk", disk)
         except Exception as e:
             print "> [ " + str(el["__ID__"]) + " :: ERROR DISK  ]"
 

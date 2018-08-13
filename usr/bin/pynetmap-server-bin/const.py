@@ -14,7 +14,7 @@ GPG_DIR = configuration.get("Storage", "GPG")
 
 ADMIN_USERNAME = configuration.get("Authentification", "Login")
 ADMIN_PASSWORD = configuration.get("Authentification", "Password")
-
+HISTORY = configuration.getint("Statistics", "History")
 UPDATE_INTERVAL = configuration.getint("Statistics", "Refresh")
 
 TUNNEL_HEADER = """killall sshuttle"""
