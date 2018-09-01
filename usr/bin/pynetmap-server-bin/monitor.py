@@ -96,10 +96,7 @@ class MonitorDaemon(Thread):
         el[key].append(value)
 
     def services(self, el, source):
-        if el["Status"] != "running":
-            status = 0
-        else:
-            status = 100
+
         try:
             os.system("rm ~/.ssh/known_hosts")
         except:
@@ -120,7 +117,6 @@ class MonitorDaemon(Thread):
 
             el["Status"] = 'running'
             el["__SSH__"] = "Yes"
-            status = 100
 
             try:
                 os = self.ssh_exec_read(
@@ -187,6 +183,7 @@ class MonitorDaemon(Thread):
                 except Exception as e:
                     print "> [ " + str(el["__ID__"]) + " :: ERROR MOUNTS   ]"
 
+
             elif source != None:
                 self.proxmox_import(el, source)
 
@@ -195,6 +192,10 @@ class MonitorDaemon(Thread):
         except Exception as e:
             el["__SSH__"] = "No"
 
+        if el["Status"] != "running":
+            status = 0
+        else:
+            status = 100
         self.history_append(el, "Status History", status)
 
     def ssh_exec_read(self, ssh, cmd):
@@ -348,3 +349,4 @@ class MonitorDaemon(Thread):
 
             except:
                 pass
+

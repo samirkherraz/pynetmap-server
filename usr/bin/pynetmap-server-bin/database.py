@@ -207,7 +207,8 @@ class Database:
         copyfile(WORKING_DIR+"base.json", BACKUP_DIR +
                  "base"+str(time.time())+".json")
         try:
-            jsonStr = json.dumps(self.get_clean())
+#            jsonStr = json.dumps(self.get_clean())
+            jsonStr = json.dumps(self.head())
             jsonStr = self.encrypt(jsonStr)
             jsonFile = codecs.open(WORKING_DIR+"base.json", "w", "utf-8")
             jsonFile.write(jsonStr)

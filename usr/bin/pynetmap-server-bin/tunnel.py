@@ -29,8 +29,7 @@ class Tunnel(Thread):
                 if ip in elm["Tunnel Network"]:
                     return
             cmd = TUNNEL_CORE
-            cmd = cmd.replace("[ID]", str(
-                elm["Tunnel Network"]).replace("/", "-").strip())
+            cmd = cmd.replace("[ID]", str(str(elm["__ID__"])+"-"+str(elm["Tunnel Network"])).replace("/", "-").strip())
             cmd = cmd.replace("[IP]", str(elm["Tunnel IP"]).strip())
             cmd = cmd.replace("[USER]", str(elm["Tunnel User"]).strip())
             cmd = cmd.replace("[PORT]", str(elm["Tunnel SSH Port"]).strip())
