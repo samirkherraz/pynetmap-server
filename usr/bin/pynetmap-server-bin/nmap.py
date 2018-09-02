@@ -21,19 +21,19 @@ class NMap:
 
     def core_writter(self, elm):
         try:
-            if str(elm["Tunnel IP"]).strip() == "" or str(elm["Tunnel Password"]).strip() == "" or str(
-                    elm["Tunnel User"]).strip() == "":
+            if str(elm["base.tunnel.ip"]).strip() == "" or str(elm["base.tunnel.password"]).strip() == "" or str(
+                    elm["base.tunnel.user"]).strip() == "":
                 return
 
             cmd = NMAP_CORE
-            cmd = cmd.replace("[ID]", str(elm["__ID__"]).strip())
-            cmd = cmd.replace("[IP]", str(elm["Tunnel IP"]).strip())
-            cmd = cmd.replace("[USER]", str(elm["Tunnel User"]).strip())
-            cmd = cmd.replace("[PORT]", str(elm["Tunnel SSH Port"]).strip())
-            cmd = cmd.replace("[NET]", str(elm["Tunnel Network"]).strip())
+            cmd = cmd.replace("[ID]", str(elm["base.core.name"]).strip())
+            cmd = cmd.replace("[IP]", str(elm["base.tunnel.ip"]).strip())
+            cmd = cmd.replace("[USER]", str(elm["base.tunnel.user"]).strip())
+            cmd = cmd.replace("[PORT]", str(elm["base.tunnel.port"]).strip())
+            cmd = cmd.replace("[NET]", str(elm["base.tunnel.network"]).strip())
             cmd = cmd.replace("[PASS]", str(
-                elm["Tunnel Password"]).replace("'", "\\'").strip())
-            cmd = cmd.replace("[NET]", str(elm["Tunnel Network"]).strip())
+                elm["base.tunnel.password"]).replace("'", "\\'").strip())
+            cmd = cmd.replace("[NET]", str(elm["base.tunnel.network"]).strip())
 
         except:
             return

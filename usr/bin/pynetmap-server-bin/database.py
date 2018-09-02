@@ -7,21 +7,13 @@ import codecs
 import time
 import random
 import string
-from const import WORKING_DIR, GPG_DIR, BACKUP_DIR
+from const import WORKING_DIR, BACKUP_DIR
 from threading import Lock
 
 
 class Database:
     def __init__(self):
         self.lock = Lock()
-        self.gpg = gnupg.GPG(gnupghome=GPG_DIR)
-        self.email = 'pynetmap@' + os.uname()[1]
-        key = "none"
-        while str(key) != "" and len(self.gpg.list_keys()) < 1:
-            input_data = self.gpg.gen_key_input(
-                name_email=self.email)
-            key = self.gpg.gen_key(input_data)
-
         self._head = None
         self._schema = None
 
@@ -29,7 +21,7 @@ class Database:
         if lst == None:
             self.lock.acquire()
             lst = self.head()
-            obj["__CHILDREN__"] = dict()
+            obj["base.core.children"] = dict()
         if newid == None:
             newid = self.autoinc()
         if parent_id == None:
@@ -39,10 +31,10 @@ class Database:
         else:
             for key in lst.keys():
                 if key == parent_id:
-                    lst[key]["__CHILDREN__"][newid] = obj
+                    lst[key]["base.core.children"][newid] = obj
                     self.lock.release()
                     return True
-                elif self.add(parent_id, obj, newid, lst[key]["__CHILDREN__"]):
+                elif self.add(parent_id, obj, newid, lst[key]["base.core.children"]):
                     return True
 
         return False
@@ -57,7 +49,7 @@ class Database:
                 i += 1
                 nobj = klst[k]
                 if i < len(f):
-                    klst = klst[k]["__CHILDREN__"]
+                    klst = klst[k]["base.core.children"]
             del klst[f[len(f)-1]]
             for k in obj:
                 nobj[k] = obj[k]
@@ -70,10 +62,10 @@ class Database:
         else:
             for key in lst.keys():
                 if key == parent_id:
-                    lst[key]["__CHILDREN__"][newid] = obj
+                    lst[key]["base.core.children"][newid] = obj
                     self.lock.release()
                     return True
-                elif self.edit(parent_id, newid, obj, lst[key]["__CHILDREN__"]):
+                elif self.edit(parent_id, newid, obj, lst[key]["base.core.children"]):
                     return True
         return False
 
@@ -88,10 +80,10 @@ class Database:
         else:
             for key in lst.keys():
                 if key == parent_id:
-                    del lst[key]["__CHILDREN__"][newid]
+                    del lst[key]["base.core.children"][newid]
                     self.lock.release()
                     return True
-                elif self.delete(parent_id, newid, lst[key]["__CHILDREN__"]):
+                elif self.delete(parent_id, newid, lst[key]["base.core.children"]):
                     return True
 
         return False
@@ -103,12 +95,18 @@ class Database:
 
         for key in lst.keys():
             key = str(key)
-            if str(lst[key]["__SCHEMA__"]).upper() == str(schema).upper():
+            if str(lst[key]["base.core.schema"]).upper() == str(schema).upper():
                 out[key] = lst[key]
             out = dict(out.items() + self.find_by_schema(schema,
-                                                         lst[key]["__CHILDREN__"]).items())
+                                                         lst[key]["base.core.children"]).items())
 
         return out
+
+    def find_parent(self, id, lst=None):
+        try:
+            return self.find_path(id).reverse()[1]
+        except:
+            return None
 
     def find_by_id(self, id, lst=None):
         if lst == None:
@@ -116,9 +114,11 @@ class Database:
 
         for key in lst.keys():
             if key.upper() == id.upper():
-                return lst[key]
+                r = dict()
+                r[key] = lst[key]
+                return r
             else:
-                r = self.find_by_id(id, lst[key]["__CHILDREN__"])
+                r = self.find_by_id(id, lst[key]["base.core.children"])
                 if r != None:
                     return r
 
@@ -129,12 +129,12 @@ class Database:
             lst = self.head()
 
         for key in lst.keys():
-            if lst[key]["__ID__"].upper() == id.upper():
+            if lst[key]["base.core.name"].upper() == id.upper():
                 r = dict()
                 r[key] = lst[key]
                 return r
             else:
-                r = self.find_by_name(id, lst[key]["__CHILDREN__"])
+                r = self.find_by_name(id, lst[key]["base.core.children"])
                 if r != None:
                     return r
 
@@ -146,10 +146,10 @@ class Database:
 
         for key in lst.keys():
             for k in lst[key]:
-                if k != "__CHILDREN__" and lst[key][k] != None and id.upper() in lst[key][k].upper():
+                if k != "base.core.children" and lst[key][k] != None and id.upper() in lst[key][k].upper():
                     return lst[key]
             else:
-                r = self.search_in_attr(id, lst[key]["__CHILDREN__"])
+                r = self.search_in_attr(id, lst[key]["base.core.children"])
                 if r != None:
                     return r
 
@@ -166,18 +166,12 @@ class Database:
                 out.append(id)
                 return out
             else:
-                res = self.find_path(id, lst[key]["__CHILDREN__"])
+                res = self.find_path(id, lst[key]["base.core.children"])
                 if len(res) > 0:
                     out.append(key)
                     out += res
 
         return out
-
-    def encrypt(self, plaintext):
-        return str(self.gpg.encrypt(plaintext, self.email))
-
-    def decrypt(self, ciphertext):
-        return self.gpg.decrypt(ciphertext).data
 
     def replace_data(self, data):
 
@@ -193,10 +187,18 @@ class Database:
             jsonFile = codecs.open(WORKING_DIR+"base.json", "r", "utf-8")
             jsonStr = jsonFile.read()
             jsonFile.close()
-            jsonStr = self.decrypt(jsonStr)
             self._head = json.loads(jsonStr)
         except:
+            print "Error"
             self._head = dict()
+
+        try:
+            jsonFile = codecs.open(WORKING_DIR+"history.json", "r", "utf-8")
+            jsonStr = jsonFile.read()
+            jsonFile.close()
+            self._head.update(json.loads(jsonStr))
+        except:
+            print "Error"
 
         jsonFile = codecs.open(WORKING_DIR+"schema.json", "r", "utf-8")
         jsonStr = jsonFile.read()
@@ -206,11 +208,14 @@ class Database:
     def write(self):
         copyfile(WORKING_DIR+"base.json", BACKUP_DIR +
                  "base"+str(time.time())+".json")
+        jsonStr = json.dumps(self.get_persistant())
+        jsonFile = codecs.open(WORKING_DIR+"base.1.json", "w", "utf-8")
+        jsonFile.write(jsonStr)
+        jsonFile.close()
+
         try:
-#            jsonStr = json.dumps(self.get_clean())
-            jsonStr = json.dumps(self.head())
-            jsonStr = self.encrypt(jsonStr)
-            jsonFile = codecs.open(WORKING_DIR+"base.json", "w", "utf-8")
+            jsonStr = json.dumps(self.get_volatile())
+            jsonFile = codecs.open(WORKING_DIR+"history.json", "w", "utf-8")
             jsonFile.write(jsonStr)
             jsonFile.close()
         except:
@@ -219,7 +224,10 @@ class Database:
     def head(self):
         return self._head
 
-    def get_clean(self, lst=None):
+    def get_persistant(self, lst=None):
+        return self.filter("base.")
+
+    def filter(self, module, lst=None):
         cl = dict()
         if lst == None:
             lst = self._head
@@ -228,14 +236,20 @@ class Database:
 
             cl[i] = dict()
             for j in lst[i]:
-                if j in self.get_model(lst[i]["__SCHEMA__"]).keys():
-                    cl[i][j] = lst[i][j]
-
-            cl[i]["__SCHEMA__"] = lst[i]["__SCHEMA__"]
-            cl[i]["__ID__"] = lst[i]["__ID__"]
-            cl[i]["__CHILDREN__"] = self.get_clean(lst[i]["__CHILDREN__"])
+                if type(module) is list:
+                    for e in module:
+                        if e in j:
+                            cl[i][j] = lst[i][j]
+                else:
+                    if j.startswith(module):
+                        cl[i][j] = lst[i][j]
+            cl[i]["base.core.children"] = self.filter(
+                module, lst[i]["base.core.children"])
 
         return cl
+
+    def get_volatile(self, lst=None):
+        return self.filter("module.")
 
     def autoinc(self):
         return "EL_"+str(str(time.time()))+''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
