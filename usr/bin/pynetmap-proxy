@@ -1,0 +1,2 @@
+#!/bin/bash
+python /home/samir/MEGA/Programmation/pynetmap/pynetmap-server/usr/bin/pynetmap-server-bin/proxy.py $SSH_ORIGINAL_COMMAND
