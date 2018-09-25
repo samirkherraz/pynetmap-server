@@ -17,6 +17,7 @@ class Tunnel(Thread):
         self.store = l
         self._stop = Event()
         self._notify = Event()
+        self._end = Event()
         self._lock = Lock()
 
     def core_writter(self, elm):
@@ -60,13 +61,18 @@ class Tunnel(Thread):
         for elm in lst.find_by_schema("Serveur"):
             self.core_writter(lst.find_by_id(elm))
 
+    def wait(self):
+        self._end.wait()
+
     def run(self):
         while not self._stop.isSet():
+            self._end.clear()
             self.process(self.store)
             os.system(TUNNEL_HEADER)
             for cmd in self.passed:
                 print cmd
                 os.system(cmd)
+            self._end.set()
             self._notify.wait()
             with self._lock:
                 self._notify.clear()

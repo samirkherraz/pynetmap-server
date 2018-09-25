@@ -13,8 +13,6 @@ from threading import Lock
 
 class Database:
     def __init__(self):
-        self.last_data_edit = time.time()
-        self.last_schema_edit = time.time()
         self.lock = Lock()
         self.gpg = gnupg.GPG(gnupghome=GPG_DIR)
         self.email = 'pynetmap@' + os.uname()[1]
@@ -28,7 +26,6 @@ class Database:
         self._schema = None
 
     def add(self, parent_id, obj, newid=None, lst=None):
-        self.last_data_edit = time.time()
         if lst == None:
             self.lock.acquire()
             lst = self.head()
@@ -51,7 +48,6 @@ class Database:
         return False
 
     def edit(self, parent_id, newid, obj, lst=None):
-        self.last_data_edit = time.time()
         if lst == None:
             self.lock.acquire()
             klst = self.head()
@@ -82,8 +78,6 @@ class Database:
         return False
 
     def delete(self, parent_id, newid, lst=None):
-        self.last_data_edit = time.time()
-
         if lst == None:
             self.lock.acquire()
             lst = self.head()
@@ -188,19 +182,11 @@ class Database:
     def replace_data(self, data):
 
         with self.lock:
-            self.last_data_edit = time.time()
             self._head = data
 
     def replace_schema(self, data):
         with self.lock:
-            self.last_data_edit = time.time()
             self._schema = data
-
-    def last_data_timestamp(self):
-        return self.last_data_edit
-
-    def last_schema_timestamp(self):
-        return self.last_schema_edit
 
     def read(self):
         try:
@@ -238,6 +224,7 @@ class Database:
             lst = self._head
 
         for i in lst:
+
             cl[i] = dict()
             for j in lst[i]:
                 if j in self.get_model(lst[i]["__SCHEMA__"]).keys():

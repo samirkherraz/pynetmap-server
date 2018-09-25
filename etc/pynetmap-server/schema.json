@@ -7,6 +7,7 @@
                 "System": "SHORT",
                 "Utilité": "LONG",
                 "IP": "SHORT",
+                "PORT": "SHORT",
                 "User": "SHORT",
                 "Password": "SHORT"
             },
@@ -27,6 +28,7 @@
             "Build": "AUTO",
             "Fields": {
                 "IP": "SHORT",
+                "PORT": "SHORT",
                 "Password": "SHORT",
                 "User": "SHORT",
                 "Service": "LONG",
@@ -39,6 +41,7 @@
             "Build": "AUTO",
             "Fields": {
                 "IP": "SHORT",
+                "PORT": "SHORT",
                 "Password": "SHORT",
                 "User": "SHORT",
                 "Service": "LONG",
