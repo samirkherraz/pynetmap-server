@@ -1,24 +1,32 @@
 #!/usr/bin/env python
+__author__ = 'Samir KHERRAZ'
+__copyright__ = '(c) Samir HERRAZ 2018-2018'
+__version__ = '1.1.0'
+__licence__ = 'GPLv3'
 
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import os
-from database import Database
-from discover import Discover
-from tunnel import Tunnel
-from const import ADMIN_PASSWORD, ADMIN_USERNAME, LISTENING_PORT, EXIT_ERROR_CORRUPT_DB, EXIT_ERROR_LOCK, EXIT_SUCCESS
-import signal
 import Cookie
-import string
-import random
-import time
 import json
+import os
+import random
+import signal
+import string
 import sys
-from utils import Utils
-import ssl
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from multiprocessing.managers import BaseManager
+from multiprocessing import Process
 from alerts import Alerts
+from const import (ADMIN_PASSWORD, ADMIN_USERNAME, EXIT_ERROR_CORRUPT_DB,
+                   EXIT_SUCCESS, LISTENING_PORT)
+from database import Database
+from Core import Core
+from utils import Utils
 
 
-class Boot:
+class MyManager(BaseManager):
+    pass
+
+
+class Boot():
     def __init__(self):
         self.terminal_fields = []
         self.terminal_fields.append("base.ssh.password")
@@ -41,20 +49,26 @@ class Boot:
         self.edit_fields.append("base.tunnel.password")
         self.edit_fields.append("alert.required_fields")
 
+        MyManager.register("Database", Database)
+        MyManager.register("Utils", Utils)
+        MyManager.register("Alerts", Alerts)
+        MyManager.register("Core", Core)
+        self.shared = MyManager()
+        self.shared.start()
+
         self.api = dict()
         try:
-            self.store = Database()
+            self.store = self.shared.Database()
             self.store.read()
         except ValueError as e:
-            print e
-            Utils.debug("System", "Unable to access Database", 2)
+            Utils.debug("System::Database", "Unable to access Database"+e, 2)
             exit(EXIT_ERROR_CORRUPT_DB)
         self.change_ssh_password()
-        self.tunnel = Tunnel(self)
-        self.alerts = Alerts(self)
-        self.discover = Discover(self)
-        self.tunnel.start()
-        self.discover.start()
+        self.utils = self.shared.Utils(self.store)
+        self.alerts = self.shared.Alerts(self.store, self.utils)
+        self.core = self.shared.Core(self.store, self.utils, self.alerts)
+        self.engine = Process(target=self.core.run)
+        self.engine.start()
         self.register_action("/core/data/get", self.get_data)
         self.register_action("/core/data/set", self.set_data)
         self.register_action("/core/data/create", self.create_data)
@@ -75,8 +89,7 @@ class Boot:
         self.api[path] = callback
 
     def stop(self):
-        self.tunnel.stop()
-        self.discover.stop()
+        self.engine.terminate()
 
     def change_ssh_password(self):
         token = ''.join(random.choice(
@@ -84,7 +97,10 @@ class Boot:
 
         os.system("echo 'pynetmap:"+token+"' | chpasswd")
         self.store.set("server", "server.ssh.password", token)
-        self.store.tables["server"].write()
+
+    def change_file_permission(self):
+        os.system("chmod 700 /var/lib/pynetmap -R")
+        self.store.set("server", "server.ssh.password", token)
 
     def user_auth(self, path, data, cookies):
         k = dict()
@@ -152,7 +168,6 @@ class Boot:
     def tunnel_reload(self, path, data, cookies):
         if not self.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.manage"):
             return {"AUTHORIZATION": False}
-        self.tunnel.notify(True)
 
     def get_data(self, path, data, cookies):
         terminal = self.store.get_attr(
@@ -210,7 +225,6 @@ class Boot:
             self.store.set_table(path[0], data)
         self.store.cleanup()
         self.store.write()
-        self.tunnel.notify()
 
     def create_data(self, path, data, cookies):
         if not self.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.edit"):
@@ -334,10 +348,10 @@ class KodeFunHTTPRequestHandler(BaseHTTPRequestHandler):
 
 
 def run():
-    Utils.debug("System", "HTTP Server Starting")
+    Utils.debug("System::API", "HTTP Server Starting")
     server_address = ('0.0.0.0', LISTENING_PORT)
     httpd = HTTPServer(server_address, KodeFunHTTPRequestHandler)
-    Utils.debug("System", "HTTP Server Running")
+    Utils.debug("System::API", "HTTP Server Running")
     httpd.serve_forever()
 
 

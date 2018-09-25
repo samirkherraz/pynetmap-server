@@ -1,5 +1,8 @@
-#!/usr/bin/python
-from utils import Utils
+#!/usr/bin/env python
+__author__ = 'Samir KHERRAZ'
+__copyright__ = '(c) Samir HERRAZ 2018-2018'
+__version__ = '1.1.0'
+__licence__ = 'GPLv3'
 
 
 class Alerts:
@@ -7,9 +10,9 @@ class Alerts:
     ALERT_ERROR = 1
     ALERT_INFO = 0
 
-    def __init__(self, parent):
-        self.store = parent.store
-        self.parent = parent
+    def __init__(self, store, utils):
+        self.store = store
+        self.utils = utils
 
     def disk(self, el):
         try:
@@ -149,7 +152,8 @@ class Alerts:
             pass
 
     def check(self, key):
-        Utils.debug("System", "Alerts started")
+        self.utils.debug("System::Alerts", self.store.get_attr(
+            "base", key, "base.name"))
         self.clear(key)
         self.disk(key)
         self.mounts(key)

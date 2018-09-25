@@ -1,21 +1,17 @@
-#!/usr/bin/python
-import gnupg
-from shutil import copyfile
-import json
-import os
-import codecs
+#!/usr/bin/env python
+__author__ = 'Samir KHERRAZ'
+__copyright__ = '(c) Samir HERRAZ 2018-2018'
+__version__ = '1.1.0'
+__licence__ = 'GPLv3'
+
 import time
 import random
 import string
-from const import WORKING_DIR, BACKUP_DIR
-from threading import Lock
 from table import Table
-from utils import Utils
 
 
 class Database:
     def __init__(self):
-        self.lock = Lock()
         self.tables = dict()
         self.specials = []
         self.register("schema", True)
@@ -112,8 +108,8 @@ class Database:
     def get(self, table, key):
         try:
             return self.tables[table].get(key)
-        except ValueError as e:
-            Utils.debug("Database", e, 2)
+        except:
+            pass
 
     def set(self, table, key, value):
         self.tables[table].set(key, value)
@@ -121,14 +117,14 @@ class Database:
     def set_attr(self, table, id, key, value):
         try:
             self.tables[table].set_attr(id, key, value)
-        except ValueError as e:
-            Utils.debug("Database", e, 2)
+        except:
+            pass
 
     def get_attr(self, table, id, key):
         try:
             return self.tables[table].get_attr(id, key)
-        except ValueError as e:
-            Utils.debug("Database", e, 2)
+        except:
+            pass
 
     def delete(self, parent_id, newid, lst=None):
         if lst == None:
@@ -182,7 +178,8 @@ class Database:
 
     def find_parent(self, id, lst=None):
         try:
-            return self.find_path(id).reverse()[1]
+            path = self.find_path(id)
+            return path[len(path)-2]
         except:
             return None
 

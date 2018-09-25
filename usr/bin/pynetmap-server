@@ -1,20 +1,8 @@
 #!/bin/bash
+# author : Samir KHERRAZ
+# copyright : (c) Samir HERRAZ 2018-2018
+# version : 1.1.0
+# licence : GPLv3
 
 
-
-if [ "$(id -u)" != "0" ]; then
-   echo "This program must be run as root" 1>&2
-   pkexec /usr/bin/pynetmap-server &
-   exit 1
-fi
-
-if [ ! -f /var/lib/pynetmap/base.json  ]; 
-then
-    echo "{}" > /var/lib/pynetmap/base.json
-fi
-if [ ! -f /var/lib/pynetmap/schema.json  ]; 
-then
-    cp /etc/pynetmap-server/schema.json /var/lib/pynetmap/
-fi
-
-/usr/bin/pynetmap-server-bin/__main__.py
+/usr/bin/pynetmap-server-bin/main.py

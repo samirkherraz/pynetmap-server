@@ -1,11 +1,15 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+__author__ = 'Samir KHERRAZ'
+__copyright__ = '(c) Samir HERRAZ 2018-2018'
+__version__ = '1.1.0'
+__licence__ = 'GPLv3'
+
 from shutil import copyfile
 import json
 import codecs
 import time
 from const import WORKING_DIR, BACKUP_DIR
 from threading import Lock
-from utils import Utils
 
 
 class Table:
@@ -73,6 +77,9 @@ class Table:
                     for e in self._head[k].keys():
                         if not e.startswith(self._name):
                             del self._head[k][e]
+                        elif self._head[k][e] == "":
+                            del self._head[k][e]
+
             if lst != None:
                 for k in lst:
                     if k not in self._head:

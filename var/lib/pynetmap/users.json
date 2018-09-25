@@ -1,0 +1,11 @@
+{
+    "adminsu": {
+        "users.privilege.edit": true,
+        "users.token": "4SZ4Y50V5UDSH2AQ",
+        "users.lastname": "Administrator",
+        "users.password": "43d5844b7e9e31543348f4873b235c56c1d9a77590a2ca90be2dfc3fc7c12d0c",
+        "users.privilege.terminal": true,
+        "users.privilege.manage": true,
+        "users.firstname": "Administrator"
+    }
+}

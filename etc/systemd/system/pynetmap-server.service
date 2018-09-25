@@ -4,8 +4,8 @@ After=syslog.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+User=pynetmap
+Group=pynetmap
 WorkingDirectory=/tmp/
 ExecStart=/usr/bin/pynetmap-server
 StandardOutput=syslog

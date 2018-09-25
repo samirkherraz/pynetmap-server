@@ -1,6 +1,12 @@
-import os
+#!/usr/bin/env python
+__author__ = 'Samir KHERRAZ'
+__copyright__ = '(c) Samir HERRAZ 2018-2018'
+__version__ = '1.1.0'
+__licence__ = 'GPLv3'
+
 import ConfigParser
-from threading import Lock
+
+
 CONFIG_FILE = "/etc/pynetmap-server/global.conf"
 configuration = ConfigParser.ConfigParser()
 with open(CONFIG_FILE) as fp:
@@ -22,3 +28,6 @@ TUNNEL_CORE = """sshuttle -r [USER]@[IP] [NET] -e 'sshpass -p[PASS] ssh -p [PORT
 EXIT_ERROR_LOCK = 1
 EXIT_ERROR_CORRUPT_DB = 2
 EXIT_SUCCESS = 0
+
+
+DEBUG = False
