@@ -92,15 +92,17 @@ class Boot():
         self.engine.terminate()
 
     def change_ssh_password(self):
-        token = ''.join(random.choice(
-                string.ascii_uppercase + string.digits) for _ in range(32))
+        new = ''.join(random.choice(
+            string.ascii_uppercase + string.digits) for _ in range(32))
+        old = self.store.get("server", "server.ssh.password")
 
-        os.system("echo 'pynetmap:"+token+"' | chpasswd")
-        self.store.set("server", "server.ssh.password", token)
+        os.system('/bin/bash -c \'echo -e "'+old +
+                  '\\n'+new+'\\n'+new+'" | passwd \'')
+        self.store.set("server", "server.ssh.password", new)
+        self.store.write()
 
     def change_file_permission(self):
         os.system("chmod 700 /var/lib/pynetmap -R")
-        self.store.set("server", "server.ssh.password", token)
 
     def user_auth(self, path, data, cookies):
         k = dict()
