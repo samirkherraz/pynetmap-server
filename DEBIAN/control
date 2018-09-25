@@ -1,9 +1,0 @@
-Package: pynetmap-server
-Essential: no
-Priority: optional
-Section: base
-Version: 1.0-1
-Maintainer: Samir KHERRAZ <samir.kherraz@outlook.fr>
-Architecture: all
-Depends: python, python-gnupg, python-proxmoxer, sshuttle, awk, sshpass, python-requests
-Description: pynetmap app

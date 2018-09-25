@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import os
-from const import NMAP_CORE, NMAP_MASK
+from const import NMAP_CORE
 import threading
 
 
@@ -49,7 +49,9 @@ class NMap:
             if i < len(self.passed):
                 k += " & "
         k += " ); do echo -e $i;done"
-        output = os.popen(k).read().split("\n")
+        popen = os.popen(k)
+        output = popen.read().split("\n")
+        popen.close()
         for line in output:
             if line.count('.') < 3 or line.count(':') < 5:
                 continue
