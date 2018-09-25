@@ -1,7 +1,10 @@
 {
     "__MODEL__": {
         "Noeud": {
+            "Build": "MANUAL",
             "Fields": {
+                "__ID__": "SHORT",
+                "System": "SHORT",
                 "Utilité": "LONG",
                 "IP": "SHORT",
                 "User": "SHORT",
@@ -11,6 +14,7 @@
             "Icon": "/usr/share/pynetmap/Noeud"
         },
         "Infrastructures": {
+            "Build": "MANUAL",
             "Fields": {
                 "__ID__": "SHORT",
                 "Site": "SHORT",
@@ -20,6 +24,7 @@
             "Icon": "/usr/share/pynetmap/Infrastructures"
         },
         "VM": {
+            "Build": "AUTO",
             "Fields": {
                 "IP": "SHORT",
                 "Password": "SHORT",
@@ -30,10 +35,22 @@
             "Parents": "Noeud",
             "Icon": "/usr/share/pynetmap/VM"
         },
+        "Container": {
+            "Build": "AUTO",
+            "Fields": {
+                "IP": "SHORT",
+                "Password": "SHORT",
+                "User": "SHORT",
+                "Service": "LONG",
+                "Utilité": "LONG"
+            },
+            "Parents": "Noeud",
+            "Icon": "/usr/share/pynetmap/Container"
+        },
         "Serveur": {
+            "Build": "MANUAL",
             "Fields": {
                 "__ID__": "SHORT",
-                "System": "SHORT",
                 "Utilité": "LONG",
                 "Tunnel User": "SHORT",
                 "Tunnel Password": "SHORT",
