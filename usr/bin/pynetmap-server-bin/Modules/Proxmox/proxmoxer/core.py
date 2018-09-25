@@ -61,7 +61,8 @@ class ProxmoxResource(ProxmoxResourceBase):
 
         kwargs = self._store.copy()
         if resource_id is not None:
-            kwargs["base_url"] = self.url_join(self._store["base_url"], *resource_id)
+            kwargs["base_url"] = self.url_join(
+                self._store["base_url"], *resource_id)
 
         return self.__class__(**kwargs)
 
@@ -71,8 +72,10 @@ class ProxmoxResource(ProxmoxResourceBase):
             logger.info('%s %s %r', method, url, data)
         else:
             logger.info('%s %s', method, url)
-        resp = self._store["session"].request(method, url, data=data or None, params=params)
-        logger.debug('Status code: %s, output: %s', resp.status_code, resp.content)
+        resp = self._store["session"].request(
+            method, url, data=data or None, params=params)
+        logger.debug('Status code: %s, output: %s',
+                     resp.status_code, resp.content)
 
         if resp.status_code >= 400:
             raise ResourceException("{0} {1}: {2}".format(resp.status_code, httplib.responses[resp.status_code],
@@ -102,8 +105,9 @@ class ProxmoxResource(ProxmoxResourceBase):
 class ProxmoxAPI(ProxmoxResourceBase):
     def __init__(self, host, backend='https', **kwargs):
 
-        #load backend module
-        self._backend = importlib.import_module('.backends.%s' % backend, 'proxmoxer').Backend(host, **kwargs)
+        # load backend module
+        self._backend = importlib.import_module(
+            '.backends.%s' % backend, "Modules.Proxmox.proxmoxer").Backend(host, **kwargs)
         self._backend_name = backend
 
         self._store = {

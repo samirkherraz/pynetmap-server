@@ -4,5 +4,4 @@
 # version : 1.1.0
 # licence : GPLv3
 
-
-/usr/bin/pynetmap-server-bin/main.py
+python /usr/bin/pynetmap-server-bin/proxy.py $SSH_ORIGINAL_COMMAND
