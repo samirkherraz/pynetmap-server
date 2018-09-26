@@ -161,7 +161,6 @@ class Alerts:
         self.mounts(key)
         self.cpu(key)
         self.memory(key)
-        self.tunnel(key)
         self.status(key)
         self.required_fields(key)
 

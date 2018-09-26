@@ -5,4 +5,4 @@
 # licence : GPLv3
 
 
-/usr/bin/pynetmap-server-bin/main.py
+python /usr/bin/pynetmap-server-bin/
