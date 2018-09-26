@@ -62,17 +62,6 @@ class Alerts:
             self.store.set_attr("alert", el, "alert.required_fields", self.alert(
                 Alerts.ALERT_INFO,  required))
 
-    def tunnel(self, el):
-        try:
-            value = self.store.get_attr("module", el, "module.tunnel.status")
-            msg = "Tunnel is down"
-
-            if value == "Lost":
-                self.store.set_attr("alert", el, "alert.tunnel", self.alert(
-                    Alerts.ALERT_ERROR,  msg))
-        except:
-            pass
-
     def cpu(self, el):
         try:
             i = 0
@@ -102,16 +91,23 @@ class Alerts:
             i = 0
             fatal = True
             info = True
+            previson = True
             while i < 10:
                 fatal &= int(self.store.get_attr(
                     "module", el, "module.state.history.memory")[::-1][i]) > 90
                 info &= int(self.store.get_attr(
                     "module", el, "module.state.history.memory")[::-1][i]) > 80
+                prevision &= float(self.store.get_attr(
+                    "module", el, "module.state.history.memory")[::-1][i]) > float(self.store.get_attr(
+                        "module", el, "module.state.history.memory")[::-1][i+1])
                 i += 1
             msg = "Memory usage is " + str(int(self.store.get_attr(
                 "module", el, "module.state.history.memory")[::-1][0])) + "% for 5 minutes"
 
-            if fatal:
+            if prevision:
+                self.store.set_attr("alert", el, "alert.memory", self.alert(
+                    Alerts.ALERT_ERROR,  "Memory is growing more and more ! Crash Prevision "))
+            elif fatal:
                 self.store.set_attr("alert", el, "alert.memory", self.alert(
                     Alerts.ALERT_ERROR,  msg))
             elif info:
@@ -123,14 +119,20 @@ class Alerts:
 
     def status(self, el):
         try:
-            value1 = int(self.store.get_attr(
-                "module", el, "module.state.history.status")[::-1][0])
-            value0 = int(self.store.get_attr(
-                "module", el, "module.state.history.status")[::-1][1])
-            if value1 > value0:
+            last = 0
+            now = 0
+            i = 0
+            while i < 5:
+                last += int(self.store.get_attr(
+                    "module", el, "module.state.history.status")[::-1][i+5])
+                now += int(self.store.get_attr(
+                    "module", el, "module.state.history.status")[::-1][i])
+                i += 1
+
+            if now > last:
                 self.store.set_attr("alert", el, "alert.status", self.alert(
                     Alerts.ALERT_INFO,  "Status is UP"))
-            elif value1 < value0:
+            elif now < last:
                 self.store.set_attr("alert", el, "alert.status", self.alert(
                     Alerts.ALERT_ERROR, "Status is Down"))
         except:
