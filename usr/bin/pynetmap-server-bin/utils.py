@@ -98,7 +98,7 @@ class Utils:
                 source += tuser
                 source += "@"
                 source += tip
-                source += " nc "+ip+" " + \
+                source += " nc -w 15 "+ip+" " + \
                     ("22" if port == None or port == "" else str(port))
                 proxy = paramiko.ProxyCommand(source)
                 ssh.connect(ip, username=username,
