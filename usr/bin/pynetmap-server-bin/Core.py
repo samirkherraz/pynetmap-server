@@ -120,6 +120,7 @@ class Core:
     def run(self):
         while True:
             self.clear()
+            self.store.write()
             all = self.store.find_by_schema("Noeud")
             for id in all:
                 try:
