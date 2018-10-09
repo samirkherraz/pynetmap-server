@@ -74,7 +74,7 @@ class Alerts:
                     "module", el, "module.state.history.cpuusage")[::-1][i]) > 80
                 i += 1
             msg = "CPU Usage usage is " + str(int(self.store.get_attr(
-                "module", el, "module.state.history.cpuusage")[::-1][0])) + "% for 5 minutes"
+                "module", el, "module.state.history.cpuusage")[::-1][0])) + "%"
 
             if fatal:
                 self.store.set_attr("alert", el, "alert.cpu", self.alert(
@@ -102,7 +102,7 @@ class Alerts:
                         "module", el, "module.state.history.memory")[::-1][i+1])
                 i += 1
             msg = "Memory usage is " + str(int(self.store.get_attr(
-                "module", el, "module.state.history.memory")[::-1][0])) + "% for 5 minutes"
+                "module", el, "module.state.history.memory")[::-1][0])) + "%"
 
             if fatal and prevision:
                 self.store.set_attr("alert", el, "alert.memory", self.alert(
