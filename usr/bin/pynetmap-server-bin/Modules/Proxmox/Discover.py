@@ -10,7 +10,8 @@ from proxmoxer import ProxmoxAPI
 class Discover:
 
     def arp_table(self, id):
-        ssh = self.utils.open_ssh(self.store.get("base", id))
+        arp = dict()
+        ssh = self.utils.open_ssh(id)
         if ssh != None:
             table = self.utils.ssh_exec_read(ssh,
                                              """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
@@ -18,12 +19,13 @@ class Discover:
             try:
                 for line in table.split("\n"):
                     try:
-                        self.arp[line.split("=")[1].upper()] = line.split("=")[
+                        arp[line.split("=")[1].upper()] = line.split("=")[
                             0].upper()
                     except:
                         pass
             except:
                 pass
+        return arp
 
     def find(self, name, id):
         for k in self.store.get_children(id):
@@ -37,7 +39,6 @@ class Discover:
     def __init__(self, store, utils):
         self.utils = utils
         self.store = store
-        self.arp = dict()
 
     def process(self, id):
         localport = self.utils.open_port(id, "8006")
@@ -63,7 +64,7 @@ class Discover:
             for node in proxmox.nodes.get():
                 self.store.set_attr(
                     "base", id, "base.name", node['node'])
-                self.arp_table(id)
+                arp = self.arp_table(id)
                 try:
                     for vm in proxmox.nodes(node['node']).qemu.get():
                         k = self.find(vm["name"], id)
@@ -77,23 +78,22 @@ class Discover:
                         for i in proxmox.nodes(node['node']).qemu(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
-                                    ip = self.arp[proxmox.nodes(node['node']).qemu(
-                                        vm["vmid"]).config.get()[i].split("=")[1].split(",")[0]]
                                     eth = i
+                                    self.store.set_attr(
+                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).qemu(
                                         vm["vmid"]).config.get()[i].split("=")[1].split(",")[0]
                                     self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
-                                    self.store.set_attr(
                                         "base", k, "base.net.mac", mac)
+                                    ip = arp[mac]
+
+                                    self.store.set_attr(
+                                        "base", k, "base.net.ip", ip)
 
                                 except:
                                     pass
 
-                except ValueError as e:
-                    print e
+                except:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).lxc.get():
@@ -108,17 +108,17 @@ class Discover:
                         for i in proxmox.nodes(node['node']).lxc(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
-                                    ip = self.arp[proxmox.nodes(node['node']).lxc(
-                                        vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]]
+
                                     eth = i
+                                    self.store.set_attr(
+                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).lxc(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
                                     self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
-                                    self.store.set_attr(
                                         "base", k, "base.net.mac", mac)
+                                    ip = arp[mac]
+                                    self.store.set_attr(
+                                        "base", k, "base.net.ip", ip)
 
                                 except:
                                     pass
@@ -137,25 +137,23 @@ class Discover:
                         for i in proxmox.nodes(node['node']).openvz(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
-                                    ip = self.arp[proxmox.nodes(node['node']).openvz(
-                                        vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]]
                                     eth = i
+                                    self.store.set_attr(
+                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).openvz(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
                                     self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
-                                    self.store.set_attr(
                                         "base", k, "base.net.mac", mac)
+                                    ip = arp[mac]
+                                    self.store.set_attr(
+                                        "base", k, "base.net.ip", ip)
 
                                 except:
                                     pass
 
                 except:
                     pass
-        except ValueError as e:
-            print e
+        except:
             self.store.set_attr(
                 "module", id, "module.discover.proxmox", "No")
 
