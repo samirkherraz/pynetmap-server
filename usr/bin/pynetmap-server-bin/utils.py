@@ -115,8 +115,12 @@ class Utils:
 
         if level == Utils.DEBUG_NOTICE:
             lvl = "[  Notice  ]"
+            if not DEBUG:
+                return
         elif level == Utils.DEBUG_WARNING:
             lvl = "[  Warning ]"
+            if not DEBUG:
+                return
         elif level == Utils.DEBUG_ERROR:
             lvl = "[  Error   ]"
         else:
@@ -183,8 +187,8 @@ class Utils:
                     self.debug("System::Forwarding",
                                "Port "+ip+":"+port+" Mapped to localhost:"+localport)
                     return localport
-                except Exception as e:
-                    print e
+                except:
+
                     self.debug("System::Forwarding",
                                "Unable to map "+ip+":"+port+" to localhost:"+localport)
                     return None

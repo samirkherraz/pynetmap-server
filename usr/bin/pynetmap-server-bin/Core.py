@@ -63,7 +63,7 @@ class Core:
     def register_discover(self, name, handler):
         Core.DISCOVER[name] = handler
 
-    def discover(self, id, parent=None):
+    def discover(self, id):
         hypervisor = self.store.get_attr("base", id, "base.type")
         if hypervisor != None and hypervisor in Core.DISCOVER:
             self.utils.debug(
@@ -81,19 +81,25 @@ class Core:
             status = Core.MONITOR[os].process(id)
             self.store.set_attr("module", id, "module.state.discoverer", os)
         if status != self.utils.RUNNING_STATUS and hypervisor in Core.MONITOR:
-            self.utils.debug(
-                "System::Monitor", hypervisor + "::"+self.store.get_attr("base", id, "base.name"))
+            self.utils.debug("System::Monitor", hypervisor +
+                             "::"+str(self.store.get_attr("base", id, "base.name")))
             status = Core.MONITOR[hypervisor].process(id)
             self.store.set_attr(
                 "module", id, "module.state.discoverer", hypervisor)
 
         self.set_status(id,  status)
 
-        self.alerts.check(id)
-
     def process(self, id, parent=None):
-        self.discover(id, parent)
-        self.monitor(id, parent)
+        self.discover(id)
+        if self.store.get_attr("base", id, "base.monitor") == None:
+            self.store.set_attr("base", id, "base.monitor", "Yes")
+
+        if self.store.get_attr("base", id, "base.monitor") == "Yes":
+            self.monitor(id, parent)
+            self.alerts.check(id)
+        else:
+            self.alerts.clear(id)
+
         for key in self.store.get_children(id):
             self.process(key, id)
 
@@ -116,14 +122,17 @@ class Core:
             self.clear()
             all = self.store.find_by_schema("Noeud")
             for id in all:
-                if DEBUG:
-                    self.process(id)
-                else:
-                    thread = None
-                    thread = Thread(target=self.process, args=(id,))
-                    self.threads.append(thread)
-                    thread.daemon = True
-                    thread.start()
+                try:
+                    if DEBUG:
+                        self.process(id)
+                    else:
+                        thread = None
+                        thread = Thread(target=self.process, args=(id,))
+                        self.threads.append(thread)
+                        thread.daemon = True
+                        thread.start()
+                except:
+                    pass
             try:
                 self._stop.wait(UPDATE_INTERVAL)
             except:

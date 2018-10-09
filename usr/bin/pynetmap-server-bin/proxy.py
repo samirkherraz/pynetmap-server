@@ -32,7 +32,6 @@ class Proxy:
             tunnel = self.utils.find_tunnel(id)
 
             if tunnel != None:
-                print " -- tunnel found"
                 tip = self.utils.store.get_attr(
                     "base", tunnel, "base.tunnel.ip")
                 tport = self.utils.store.get_attr(
@@ -43,7 +42,7 @@ class Proxy:
                     "base", tunnel, "base.tunnel.password")
                 source = "sshpass -p"
                 source += tpass.replace("!", "\\!")
-                source += " ssh -tt -p "
+                source += " ssh -q -tt -p "
                 source += "22" if tport == None or tport == "" else tport
                 source += " -o StrictHostKeyChecking=no "
                 source += tuser
@@ -62,17 +61,19 @@ class Proxy:
             port = self.utils.store.get_attr("base", id, "base.ssh.port")
             target = "sshpass -p"
             target += password.replace("!", "\\!")
-            target += " ssh -tt -p "
+            target += " ssh -q -tt -p "
             target += "22" if port == None or port == "" else port
             target += " -o StrictHostKeyChecking=no "
             target += username
             target += "@"
             target += ip
+            shell = "exec /bin/bash || exec /bin/sh || echo No Shell Found"
             if source != "":
-                cmd = source + ' " ' + target + ' " '
+                cmd = source + ' " ' + target + ' \\"'+shell+'\\" " '
             else:
-                cmd = target
+                cmd = target + ' "'+shell+'" '
             return cmd
+
         except:
             return None
 

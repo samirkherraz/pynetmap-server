@@ -30,11 +30,14 @@ class Discover:
             if self.store.get_attr("base", k, "base.name") == name:
                 return k
         newid = self.store.create(id)
+        self.utils.debug('System::Discovery',
+                         self.store.get_attr("base", id, "base.name")+"::"+name)
         return newid
 
     def __init__(self, store, utils):
         self.utils = utils
         self.store = store
+        self.arp = dict()
 
     def process(self, id):
         localport = self.utils.open_port(id, "8006")
@@ -63,11 +66,12 @@ class Discover:
                 self.arp_table(id)
                 try:
                     for vm in proxmox.nodes(node['node']).qemu.get():
-                        k = self.proxmox_find(vm["name"], id)
+                        k = self.find(vm["name"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
+
                         self.store.set_attr(
-                            "base", k, "base.vmid", vm["vmid"])
+                            "base", k, "base.proxmox.id", vm["vmid"])
                         self.store.set_attr(
                             "base", k, "base.core.schema", "VM")
                         for i in proxmox.nodes(node['node']).qemu(vm["vmid"]).config.get():
@@ -88,15 +92,16 @@ class Discover:
                                 except:
                                     pass
 
-                except:
+                except ValueError as e:
+                    print e
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).lxc.get():
-                        k = self.proxmox_find(vm["name"], id)
+                        k = self.find(vm["name"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
                         self.store.set_attr(
-                            "base", k, "base.vmid", vm["vmid"])
+                            "base", k, "base.proxmox.id", vm["vmid"])
                         self.store.set_attr(
                             "base", k, "base.core.schema", "Container")
 
@@ -122,11 +127,11 @@ class Discover:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).openvz.get():
-                        k = self.proxmox_find(vm["name"], id)
+                        k = self.find(vm["name"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
                         self.store.set_attr(
-                            "base", k, "base.vmid", vm["vmid"])
+                            "base", k, "base.proxmox.id", vm["vmid"])
                         self.store.set_attr(
                             "base", k, "base.core.schema", "Container")
                         for i in proxmox.nodes(node['node']).openvz(vm["vmid"]).config.get():
@@ -149,7 +154,8 @@ class Discover:
 
                 except:
                     pass
-        except:
+        except ValueError as e:
+            print e
             self.store.set_attr(
                 "module", id, "module.discover.proxmox", "No")
 

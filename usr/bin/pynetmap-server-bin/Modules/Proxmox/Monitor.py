@@ -36,7 +36,7 @@ class Monitor:
                                  verify_ssl=False)
             source = proxmox.nodes(self.store.get_attr(
                 "base", proxmoxid, "base.name")).qemu(self.store.get_attr(
-                    "base", id, "base.vmid")).get()[0]
+                    "base", id, "base.proxmox.id")).get("status/current")
 
             try:
                 mem = float(float(source["mem"]) /
@@ -46,7 +46,7 @@ class Monitor:
                                         "module", id, "module.state.history.memory"), mem))
 
             except:
-                failed = True
+                pass
 
             nbcpus = None
             try:
@@ -63,22 +63,20 @@ class Monitor:
             except:
                 pass
 
-            failed = (nbcpus == None)
-
             try:
                 cpuusage = float(source["cpu"]) * 100
                 self.store.set_attr("module", id, "module.state.history.cpuusage",
                                     self.utils.history_append(self.store.get_attr(
                                         "module", id, "module.state.history.cpuusage"), cpuusage))
             except:
-                failed = True
+                pass
 
             try:
                 uptime = str(timedelta(seconds=(source["uptime"])))
                 self.store.set_attr(
                     "module", id, "module.state.uptime", uptime)
             except:
-                failed = True
+                pass
 
             try:
                 disk = float(float(source["disk"]) /
@@ -87,7 +85,7 @@ class Monitor:
                                     self.utils.history_append(self.store.get_attr(
                                         "module", id, "module.state.history.disk"), disk))
             except:
-                failed = True
+                pass
 
             if source["status"] == "running":
                 status = self.utils.RUNNING_STATUS

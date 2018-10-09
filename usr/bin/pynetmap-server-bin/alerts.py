@@ -91,7 +91,7 @@ class Alerts:
             i = 0
             fatal = True
             info = True
-            previson = True
+            prevision = True
             while i < 10:
                 fatal &= int(self.store.get_attr(
                     "module", el, "module.state.history.memory")[::-1][i]) > 90
@@ -104,7 +104,7 @@ class Alerts:
             msg = "Memory usage is " + str(int(self.store.get_attr(
                 "module", el, "module.state.history.memory")[::-1][0])) + "% for 5 minutes"
 
-            if prevision:
+            if fatal and prevision:
                 self.store.set_attr("alert", el, "alert.memory", self.alert(
                     Alerts.ALERT_ERROR,  "Memory is growing more and more ! Crash Prevision "))
             elif fatal:
@@ -119,20 +119,20 @@ class Alerts:
 
     def status(self, el):
         try:
-            last = 0
-            now = 0
+            last = False
+            now = True
             i = 0
-            while i < 5:
-                last += int(self.store.get_attr(
-                    "module", el, "module.state.history.status")[::-1][i+5])
-                now += int(self.store.get_attr(
-                    "module", el, "module.state.history.status")[::-1][i])
+            while i < 3:
+                last &= int(self.store.get_attr(
+                    "module", el, "module.state.history.status")[::-1][i+3]) == 0
+                now &= int(self.store.get_attr(
+                    "module", el, "module.state.history.status")[::-1][i]) == 100
                 i += 1
 
-            if now > last:
+            if now and last:
                 self.store.set_attr("alert", el, "alert.status", self.alert(
                     Alerts.ALERT_INFO,  "Status is UP"))
-            elif now < last:
+            elif not now and not last:
                 self.store.set_attr("alert", el, "alert.status", self.alert(
                     Alerts.ALERT_ERROR, "Status is Down"))
         except:
@@ -162,7 +162,6 @@ class Alerts:
         self.cpu(key)
         self.memory(key)
         self.status(key)
-        self.required_fields(key)
 
     def clear(self, key):
         self.store.set("alert", key, dict())

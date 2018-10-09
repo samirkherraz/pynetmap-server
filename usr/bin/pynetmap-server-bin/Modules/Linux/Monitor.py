@@ -17,6 +17,7 @@ class Monitor:
         if ssh == None:
             return self.utils.STOPPED_STATUS
         failed = False
+        self.dependencies(ssh)
         try:
             mem = self.utils.ssh_exec_read(
                 ssh, """vmstat -s | awk  '$0 ~ /total memory/ {total=$1 } $0 ~/free memory/ {free=$1} $0 ~/buffer memory/ {buffer=$1} $0 ~/cache/ {cache=$1} END{print (total-free-buffer-cache)/total*100}'""", self.store.get_attr(
@@ -101,4 +102,7 @@ class Monitor:
         except:
             failed = True
         ssh.close()
-        return self.utils.RUNNING_STATUS if not failed else self.utils.UNKNOWN_STATUS
+        if not failed:
+            return self.utils.RUNNING_STATUS
+        else:
+            return self.utils.UNKNOWN_STATUS
