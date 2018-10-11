@@ -1,0 +1,95 @@
+{
+    "Noeud": {
+        "Fields": {
+            "base.ssh.password": "SHORT",
+            "base.name": "SHORT",
+            "base.type": [
+                "Proxmox",
+                "Physical",
+                "OpenStack"
+            ],
+            "base.monitor": [
+                "Yes",
+                "No"
+            ],
+            "base.description": "LONG",
+            "base.os": [
+                "Linux",
+                "FreeBSD",
+                "Windows"
+            ],
+            "base.ssh.user": "SHORT",
+            "base.ssh.port": "SHORT",
+            "base.net.ip": "SHORT"
+        },
+        "Parents": "Serveur",
+        "Build": "MANUAL",
+        "Icon": "/usr/share/pynetmap/Noeud"
+    },
+    "Infrastructures": {
+        "Fields": {
+            "Domains": "LONG",
+            "Site": "SHORT",
+            "base.name": "SHORT"
+        },
+        "Parents": null,
+        "Build": "MANUAL",
+        "Icon": "/usr/share/pynetmap/Infrastructures"
+    },
+    "Container": {
+        "Fields": {
+            "base.ssh.password": "SHORT",
+            "base.description": "LONG",
+            "base.net.ip": "SHORT",
+            "base.ssh.user": "SHORT",
+            "base.ssh.port": "SHORT",
+            "base.os": [
+                "Linux",
+                "FreeBSD",
+                "Windows"
+            ],
+            "base.monitor": [
+                "Yes",
+                "No"
+            ]
+        },
+        "Parents": "Noeud",
+        "Build": "AUTO",
+        "Icon": "/usr/share/pynetmap/Container"
+    },
+    "VM": {
+        "Fields": {
+            "base.ssh.password": "SHORT",
+            "base.description": "LONG",
+            "base.net.ip": "SHORT",
+            "base.ssh.user": "SHORT",
+            "base.ssh.port": "SHORT",
+            "base.os": [
+                "Linux",
+                "FreeBSD",
+                "Windows"
+            ],
+            "base.monitor": [
+                "Yes",
+                "No"
+            ]
+        },
+        "Parents": "Noeud",
+        "Build": "AUTO",
+        "Icon": "/usr/share/pynetmap/VM"
+    },
+    "Serveur": {
+        "Fields": {
+            "base.tunnel.ip": "SHORT",
+            "base.tunnel.network": "SHORT",
+            "base.description": "LONG",
+            "base.tunnel.user": "SHORT",
+            "base.tunnel.password": "SHORT",
+            "base.tunnel.port": "SHORT",
+            "base.name": "SHORT"
+        },
+        "Parents": "Infrastructures",
+        "Build": "MANUAL",
+        "Icon": "/usr/share/pynetmap/Serveur"
+    }
+}
