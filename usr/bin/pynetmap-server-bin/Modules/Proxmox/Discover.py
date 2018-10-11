@@ -27,13 +27,13 @@ class Discover:
                 pass
         return arp
 
-    def find(self, name, id):
+    def find(self, vmid, id):
         for k in self.store.get_children(id):
-            if self.store.get_attr("base", k, "base.name") == name:
+            if self.store.get_attr("base", k, "base.proxmox.id") == vmid:
                 return k
         newid = self.store.create(id)
         self.utils.debug('System::Discovery',
-                         self.store.get_attr("base", id, "base.name")+"::"+name)
+                         self.store.get_attr("base", id, "base.name")+"::"+str(vmid))
         return newid
 
     def __init__(self, store, utils):
@@ -67,7 +67,7 @@ class Discover:
                 arp = self.arp_table(id)
                 try:
                     for vm in proxmox.nodes(node['node']).qemu.get():
-                        k = self.find(vm["name"], id)
+                        k = self.find(vm["vmid"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
 
@@ -97,7 +97,7 @@ class Discover:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).lxc.get():
-                        k = self.find(vm["name"], id)
+                        k = self.find(vm["vmid"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
                         self.store.set_attr(
@@ -127,7 +127,7 @@ class Discover:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).openvz.get():
-                        k = self.find(vm["name"], id)
+                        k = self.find(vm["vmid"], id)
                         self.store.set_attr(
                             "base", k, "base.name", vm["name"])
                         self.store.set_attr(
