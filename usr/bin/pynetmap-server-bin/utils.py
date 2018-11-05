@@ -8,12 +8,13 @@ import os
 import socket
 import threading
 from threading import Lock
-
+import time
 import paramiko
 from const import HISTORY, DEBUG
 from forward import forward_tunnel
 from threading import Thread
-
+import random
+import string
 paramiko.util.log_to_file("/dev/null")
 
 
@@ -112,7 +113,8 @@ class Utils:
             return None
 
     def debug(elm, msg, level=0):
-
+        if level == Utils.DEBUG_NONE:
+            lvl = "[  Info  ]"
         if level == Utils.DEBUG_NOTICE:
             lvl = "[  Notice  ]"
             if not DEBUG:
@@ -131,20 +133,19 @@ class Utils:
             head += " "
         head += " ] - "
         with Utils.STDOUT:
-            print (head + msg)
+            print(head + msg)
 
     def history_append(lst, value):
         if lst == None:
             lst = []
-        summ = 0
-        i = 0
         if len(lst) > HISTORY:
             while len(lst) > HISTORY/2:
-                i += 1
-                summ += lst.pop()
-            if i > 0:
-                lst[0] = (lst[0] + summ) / (i+1)
-        lst.append(float(value) if value != None else 0)
+                lst.pop()
+
+        val = dict()
+        val["date"] = time.time()
+        val["value"] = float(value) if value != None else 0
+        lst.append(val)
         return lst
 
     def find_free_port(self):
@@ -210,6 +211,16 @@ class Utils:
             del self.ports[str(port)+"TR"]
         self.debug("System",
                    "Port "+port+" Closed.")
+
+    def change_ssh_password(self):
+        new = ''.join(random.choice(
+            string.ascii_uppercase + string.digits) for _ in range(32))
+        old = self.store.get("server", "server.ssh.password")
+
+        os.system('/bin/bash -c \'echo -e "'+old +
+                  '\\n'+new+'\\n'+new+'" | passwd \'')
+        self.store.set("server", "server.ssh.password", new)
+        self.store.write()
 
     history_append = staticmethod(history_append)
     debug = staticmethod(debug)

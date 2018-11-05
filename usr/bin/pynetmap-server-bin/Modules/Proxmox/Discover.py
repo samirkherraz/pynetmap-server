@@ -4,7 +4,7 @@ __copyright__ = '(c) Samir HERRAZ 2018-2018'
 __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 
-from proxmoxer import ProxmoxAPI
+from .proxmoxer import ProxmoxAPI
 
 
 class Discover:
@@ -36,9 +36,9 @@ class Discover:
                          self.store.get_attr("base", id, "base.name")+"::"+str(vmid))
         return newid
 
-    def __init__(self, store, utils):
-        self.utils = utils
-        self.store = store
+    def __init__(self, model):
+        self.utils = model.utils
+        self.store = model.store
 
     def process(self, id):
         localport = self.utils.open_port(id, "8006")

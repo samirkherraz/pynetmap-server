@@ -17,7 +17,7 @@ class Alerts:
     def disk(self, el):
         try:
             value = int(self.store.get_attr(
-                "module", el, "module.state.history.disk")[::-1][0])
+                "module", el, "module.state.history.disk")[::-1][0]["value"])
             msg = "Disk is " + \
                 str(value) + \
                 "%"
@@ -69,12 +69,12 @@ class Alerts:
             info = True
             while i < 10:
                 fatal &= int(self.store.get_attr(
-                    "module", el, "module.state.history.cpuusage")[::-1][i]) > 90
+                    "module", el, "module.state.history.cpuusage")[::-1][i]["value"]) > 90
                 info &= int(self.store.get_attr(
-                    "module", el, "module.state.history.cpuusage")[::-1][i]) > 80
+                    "module", el, "module.state.history.cpuusage")[::-1][i]["value"]) > 80
                 i += 1
             msg = "CPU Usage usage is " + str(int(self.store.get_attr(
-                "module", el, "module.state.history.cpuusage")[::-1][0])) + "%"
+                "module", el, "module.state.history.cpuusage")[::-1][0]["value"])) + "%"
 
             if fatal:
                 self.store.set_attr("alert", el, "alert.cpu", self.alert(
@@ -94,15 +94,15 @@ class Alerts:
             prevision = True
             while i < 10:
                 fatal &= int(self.store.get_attr(
-                    "module", el, "module.state.history.memory")[::-1][i]) > 90
+                    "module", el, "module.state.history.memory")[::-1][i]["value"]) > 90
                 info &= int(self.store.get_attr(
-                    "module", el, "module.state.history.memory")[::-1][i]) > 80
+                    "module", el, "module.state.history.memory")[::-1][i]["value"]) > 80
                 prevision &= float(self.store.get_attr(
-                    "module", el, "module.state.history.memory")[::-1][i]) > float(self.store.get_attr(
-                        "module", el, "module.state.history.memory")[::-1][i+1])
+                    "module", el, "module.state.history.memory")[::-1][i]["value"]) > float(self.store.get_attr(
+                        "module", el, "module.state.history.memory")[::-1][i+1]["value"])
                 i += 1
             msg = "Memory usage is " + str(int(self.store.get_attr(
-                "module", el, "module.state.history.memory")[::-1][0])) + "%"
+                "module", el, "module.state.history.memory")[::-1][0]["value"])) + "%"
 
             if fatal and prevision:
                 self.store.set_attr("alert", el, "alert.memory", self.alert(
@@ -124,9 +124,9 @@ class Alerts:
             i = 0
             while i < 3:
                 last &= int(self.store.get_attr(
-                    "module", el, "module.state.history.status")[::-1][i+3]) == 0
+                    "module", el, "module.state.history.status")[::-1][i+3]["value"]) == 0
                 now &= int(self.store.get_attr(
-                    "module", el, "module.state.history.status")[::-1][i]) == 100
+                    "module", el, "module.state.history.status")[::-1][i]["value"]) == 100
                 i += 1
 
             if now and last:

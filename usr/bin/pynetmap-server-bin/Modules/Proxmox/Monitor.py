@@ -6,14 +6,14 @@ __licence__ = 'GPLv3'
 
 
 from datetime import timedelta
-from proxmoxer import ProxmoxAPI
+from .proxmoxer import ProxmoxAPI
 
 
 class Monitor:
 
-    def __init__(self, store, utils):
-        self.utils = utils
-        self.store = store
+    def __init__(self, model):
+        self.utils = model.utils
+        self.store = model.store
 
     def process(self, id):
         proxmoxid = self.store.find_parent(id)

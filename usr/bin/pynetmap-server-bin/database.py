@@ -14,14 +14,14 @@ class Database:
     def __init__(self):
         self.tables = dict()
         self.specials = []
-        self.register("schema", True)
-        self.register("structure", True)
-        self.register("users", True)
-        self.register("server", True)
+        self.register("schema", True, False)
+        self.register("structure", True, True)
+        self.register("users", True, True)
+        self.register("server", True, True)
 
-        self.register("base")
-        self.register("module")
-        self.register("alert")
+        self.register("base", False, True)
+        self.register("module", False, False)
+        self.register("alert", False, False)
         self.read()
         self.cleanup()
         self.write()
@@ -32,10 +32,10 @@ class Database:
             if name not in self.specials:
                 self.tables[name].cleanup(valides)
 
-    def register(self, name, special=False):
+    def register(self, name, special, persist):
         if special == True:
             self.specials.append(name)
-        self.tables[name] = Table(name)
+        self.tables[name] = Table(name, persist)
 
     def get_table(self, name):
         try:
@@ -57,7 +57,7 @@ class Database:
             lst = self.tables["structure"].get_data()
 
         out = []
-        for key in lst.keys():
+        for key in list(lst.keys()):
             out.append(key)
             out = out + self.rebuild(lst[key])
 
@@ -73,7 +73,7 @@ class Database:
             self.cleanup()
             return newid
         else:
-            for key in lst.keys():
+            for key in list(lst.keys()):
                 if key == parent_id:
                     lst[key][newid] = {}
                     self.cleanup()
@@ -95,7 +95,7 @@ class Database:
                 elm = par[elmid]
             del par[elmid]
 
-        for key in lst.keys():
+        for key in list(lst.keys()):
             if key == parentid:
                 lst[key][id] = elm
                 self.cleanup()
@@ -134,7 +134,7 @@ class Database:
             self.cleanup()
             return True
         else:
-            for key in lst.keys():
+            for key in list(lst.keys()):
                 if key == parent_id:
                     del lst[key][newid]
                     self.cleanup()
@@ -147,7 +147,7 @@ class Database:
         if lst == None:
             lst = self.tables["structure"].get_data()
 
-        for key in lst.keys():
+        for key in list(lst.keys()):
             if key == id:
                 return lst[key]
             else:
@@ -171,9 +171,11 @@ class Database:
     def find_by_schema(self, schema):
         out = []
         for key in self.get_table("base"):
-            if str(self.tables["base"].get(key)["base.core.schema"]).upper() == str(schema).upper():
-                out.append(key)
-
+            try:
+                if str(self.tables["base"].get(key)["base.core.schema"]).upper() == str(schema).upper():
+                    out.append(key)
+            except:
+                print(key+"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return out
 
     def find_parent(self, id, lst=None):
@@ -188,7 +190,7 @@ class Database:
         if lst == None:
             lst = self.tables["structure"].get_data()
 
-        for key in lst.keys():
+        for key in list(lst.keys()):
             key = str(key)
             if key == id:
                 out.append(id)

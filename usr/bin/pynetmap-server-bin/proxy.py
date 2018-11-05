@@ -67,7 +67,7 @@ class Proxy:
             target += username
             target += "@"
             target += ip
-            shell = "exec /bin/bash || exec /bin/sh || echo No Shell Found"
+            shell = "export TERM=xterm ; exec /bin/bash  || exec /bin/sh || echo No Shell Found"
             if source != "":
                 cmd = source + ' " ' + target + ' \\"'+shell+'\\" " '
             else:
