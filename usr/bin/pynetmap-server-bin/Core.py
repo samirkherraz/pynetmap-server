@@ -4,24 +4,25 @@ __copyright__ = '(c) Samir HERRAZ 2018-2018'
 __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 import os
-import time
-from threading import Thread, Event, Semaphore
 import pkgutil
-from const import UPDATE_INTERVAL, DEBUG, LISTENING_PORT
+import time
+from threading import Event, Semaphore, Thread
 
+from const import DEBUG, LISTENING_PORT, UPDATE_INTERVAL
 from error import EXIT_ERROR_CORRUPT_DB
 from model import Model
 
 
 class Core:
+
     MONITOR = dict()
     DISCOVER = dict()
 
     def set_status(self, id, status=None):
-        el = self.model.store.get("base", id)
+        print("TATUS !!!!" + status)
         if status == self.model.utils.RUNNING_STATUS:
             self.model.utils.debug("System::Status",
-                                   el["base.name"]+"::UP")
+                                   str(self.model.store.get_attr("base", id, "base.name"))+"::UP")
             self.model.store.set_attr("module", id, "module.state.history.status",
                                       self.model.utils.history_append(self.model.store.get_attr(
                                           "module", id, "module.state.history.status"), 100))
@@ -29,7 +30,7 @@ class Core:
                 "module", id, "module.state.status", 'running')
         else:
             self.model.utils.debug("System::Status",
-                                   el["base.name"]+"::DOWN", 1)
+                                   str(self.model.store.get_attr("base", id, "base.name"))+"::DOWN", 1)
             self.model.store.set_attr("module", id, "module.state.history.status",
                                       self.model.utils.history_append(self.model.store.get_attr(
                                           "module", id, "module.state.history.status"), 0))
@@ -39,7 +40,9 @@ class Core:
             "module", id, "module.state.lastupdate", time.time())
 
     def scan(self):
-        for loader, name, is_pkg in pkgutil.walk_packages([os.path.dirname(os.path.abspath(__file__))+"/Modules"]):
+        path = os.path.dirname(os.path.abspath(__file__))+"/Modules"
+        packages = pkgutil.walk_packages([path])
+        for (loader, name, is_pkg) in packages:
             if is_pkg and "." not in name:
                 M = loader.find_module(
                     name).load_module(name)
@@ -85,23 +88,22 @@ class Core:
             Core.DISCOVER[hypervisor].process(id)
 
     def monitor(self, id, parent=None):
-        hypervisor = self.model.store.get_attr(
-            "base", parent, "base.hypervisor")
+
         method = self.model.store.get_attr("base", id, "base.monitor.method")
         if method == None:
-            method = Core.MONITOR.keys()[0]
+            method = list(Core.MONITOR.keys())[0]
             self.model.store.set_attr(
                 "base", id, "base.monitor.method", method)
 
         status = self.model.utils.UNKNOWN_STATUS
         if method in Core.MONITOR:
             self.model.utils.debug(
-                "System::Monitor", method + "::"+self.model.store.get_attr("base", id, "base.name"))
+                "System::Monitor", method + "::"+str(self.model.store.get_attr("base", id, "base.name")))
             status = Core.MONITOR[method].process(id)
             self.model.store.set_attr(
                 "module", id, "module.monitor.agent", method)
 
-        self.set_status(id,  status)
+        self.set_status(id, status)
 
     def process(self, id, parent=None):
         if parent == None:
@@ -134,7 +136,7 @@ class Core:
 
     def run(self):
         while True:
-            self.model.store.write()
+            self.model.persist()
             all = self.model.store.find_by_schema("Noeud")
             for id in all:
                 if DEBUG:

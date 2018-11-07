@@ -114,15 +114,15 @@ class Utils:
 
     def debug(elm, msg, level=0):
         if level == Utils.DEBUG_NONE:
+            if not DEBUG:
+                return
             lvl = "[  Info  ]"
         if level == Utils.DEBUG_NOTICE:
-            lvl = "[  Notice  ]"
             if not DEBUG:
                 return
+            lvl = "[  Notice  ]"
         elif level == Utils.DEBUG_WARNING:
             lvl = "[  Warning ]"
-            if not DEBUG:
-                return
         elif level == Utils.DEBUG_ERROR:
             lvl = "[  Error   ]"
         else:

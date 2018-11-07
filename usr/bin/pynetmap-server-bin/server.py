@@ -85,7 +85,7 @@ class RequestManager():
                 access = True
             else:
                 access = False
-        except:
+        except ValueError as e:
             access = False
 
         if access == True:
@@ -274,7 +274,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     def read_data(self):
         try:
             content_length = int(self.headers['Content-Length'])
-            post_data = json.loads(self.rfile.read(content_length))
+            post_data = json.loads(self.rfile.read(content_length).decode())
             return json.loads(post_data)
         except:
             return dict()
@@ -300,8 +300,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(s).encode())
 
     def do_GET(self):
-        self.do_POST()
-
+        self.send_headers()
+        self.replay_default()
+        return 
     def do_POST(self):
         self.send_headers()
 

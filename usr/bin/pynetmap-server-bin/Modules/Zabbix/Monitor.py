@@ -31,13 +31,15 @@ class Monitor:
         fields["base.monitor.zabbix.id"] = hostlist
         self.store.set_attr("schema", "Container", "Fields", fields)
 
-    def __init__(self, model):
+    def __init__(self, model, inst=False):
         self.utils = model.utils
         self.store = model.store
+        self.model = model
         self.zabbix = None
         self.login()
-        self.update_schemat()
-        self.data = None
+        if not inst:
+            self.update_schemat()
+            self.data = None
 
     def getHostList(self):
         return [e["hostid"]+"::"+e["name"]
@@ -105,6 +107,12 @@ class Monitor:
         return d
 
     def process(self, id):
+        inst = Monitor(self.model, True)
+        ret = inst.subprocess(id)
+        del inst
+        return ret
+
+    def subprocess(self, id):
         if not self.populateData(id):
             return self.utils.STOPPED_STATUS
         failed = False
@@ -194,8 +202,8 @@ class Monitor:
                 "module", id, "module.state.list.mounts", lst)
         except ValueError as e:
             print(e)
-
             failed = True
+
         if not failed:
             return self.utils.RUNNING_STATUS
         else:

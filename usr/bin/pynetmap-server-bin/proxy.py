@@ -5,11 +5,13 @@ __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 
 
-import sys
 import os
-from database import Database
-from utils import Utils
-print """
+import sys
+
+from model import Model
+
+
+print("""
   _____       _   _      _   __  __          _____
  |  __ \     | \ | |    | | |  \/  |   /\   |  __ \\
  | |__) |   _|  \| | ___| |_| \  / |  /  \  | |__) |
@@ -19,26 +21,27 @@ print """
          __/ |
         |___/
 
-"""
+""")
 
 
 class Proxy:
     def __init__(self):
-        self.utils = Utils(Database())
+        self.model = Model()
+        self.model.load()
 
     def build_ssh_command(self, id):
         cmds = []
         try:
-            tunnel = self.utils.find_tunnel(id)
+            tunnel = self.model.utils.find_tunnel(id)
 
             if tunnel != None:
-                tip = self.utils.store.get_attr(
+                tip = self.model.store.get_attr(
                     "base", tunnel, "base.tunnel.ip")
-                tport = self.utils.store.get_attr(
+                tport = self.model.store.get_attr(
                     "base", tunnel, "base.tunnel.port")
-                tuser = self.utils.store.get_attr(
+                tuser = self.model.store.get_attr(
                     "base", tunnel, "base.tunnel.user")
-                tpass = self.utils.store.get_attr(
+                tpass = self.model.store.get_attr(
                     "base", tunnel, "base.tunnel.password")
                 source = "sshpass -p"
                 source += tpass.replace("!", "\\!")
@@ -54,11 +57,11 @@ class Proxy:
             else:
                 source = ""
 
-            ip = self.utils.store.get_attr("base", id, "base.net.ip")
-            password = self.utils.store.get_attr(
+            ip = self.model.store.get_attr("base", id, "base.net.ip")
+            password = self.model.store.get_attr(
                 "base", id, "base.ssh.password")
-            username = self.utils.store.get_attr("base", id, "base.ssh.user")
-            port = self.utils.store.get_attr("base", id, "base.ssh.port")
+            username = self.model.store.get_attr("base", id, "base.ssh.user")
+            port = self.model.store.get_attr("base", id, "base.ssh.port")
             target = "sshpass -p"
             target += password.replace("!", "\\!")
             target += " ssh -q -tt -p "
@@ -74,7 +77,8 @@ class Proxy:
                 cmd = target + ' "'+shell+'" '
             return cmd
 
-        except:
+        except ValueError as e:
+            print(e)
             return None
 
 
@@ -86,9 +90,9 @@ if __name__ == '__main__':
             os.system(sshcmd)
             exit(0)
 
-    print """
+    print("""
     ___________________________________________________
 
             This is not an ssh accessible node
     ___________________________________________________
-    """
+    """)

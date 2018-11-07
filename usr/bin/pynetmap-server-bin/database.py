@@ -22,9 +22,6 @@ class Database:
         self.register("base", False, True)
         self.register("module", False, False)
         self.register("alert", False, False)
-        self.read()
-        self.cleanup()
-        self.write()
 
     def cleanup(self):
         valides = self.rebuild()
@@ -175,7 +172,7 @@ class Database:
                 if str(self.tables["base"].get(key)["base.core.schema"]).upper() == str(schema).upper():
                     out.append(key)
             except:
-                print(key+"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                pass
         return out
 
     def find_parent(self, id, lst=None):
