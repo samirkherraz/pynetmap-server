@@ -19,7 +19,6 @@ class Core:
     DISCOVER = dict()
 
     def set_status(self, id, status=None):
-        print("TATUS !!!!" + status)
         if status == self.model.utils.RUNNING_STATUS:
             self.model.utils.debug("System::Status",
                                    str(self.model.store.get_attr("base", id, "base.name"))+"::UP")
@@ -150,7 +149,7 @@ class Core:
                         self.threads[id] = thread
                         thread.daemon = True
                         thread.start()
-                    except ValueError as e:
+                    except:
                         pass
             try:
                 self._stop.wait(UPDATE_INTERVAL)

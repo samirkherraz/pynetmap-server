@@ -1,9 +1,11 @@
 #!/usr/bin/python
 from datetime import timedelta
-from .zabbix_api import ZabbixAPI
+from zabbix_api import ZabbixAPI
+from threading import Semaphore
 
 
 class Monitor:
+    Queue = Semaphore(4)
 
     def login(self):
         if self.zabbix == None or not self.zabbix.test_login():
@@ -107,9 +109,11 @@ class Monitor:
         return d
 
     def process(self, id):
+        Monitor.Queue.acquire()
         inst = Monitor(self.model, True)
         ret = inst.subprocess(id)
         del inst
+        Monitor.Queue.release()
         return ret
 
     def subprocess(self, id):

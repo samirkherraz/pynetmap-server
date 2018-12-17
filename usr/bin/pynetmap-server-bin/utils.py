@@ -51,6 +51,9 @@ class Utils:
             "base", id, "base.net.ip")).strip()
 
         path = self.store.find_path(id)
+        if len(path) <= 2:
+            return None
+
         pnetwork = self.store.get_attr(
             "base", path[1], "base.tunnel.network")
 

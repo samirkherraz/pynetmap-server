@@ -13,6 +13,7 @@ class Model:
 
     def persist(self):
         try:
+            self.store.cleanup()
             self.store.write()
             return True
         except:

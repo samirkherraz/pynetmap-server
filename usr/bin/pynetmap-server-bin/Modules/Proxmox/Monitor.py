@@ -6,7 +6,7 @@ __licence__ = 'GPLv3'
 
 
 from datetime import timedelta
-from .proxmoxer import ProxmoxAPI
+from proxmoxer import ProxmoxAPI
 
 
 class Monitor:

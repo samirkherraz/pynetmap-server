@@ -85,7 +85,7 @@ class RequestManager():
                 access = True
             else:
                 access = False
-        except ValueError as e:
+        except:
             access = False
 
         if access == True:
@@ -127,7 +127,7 @@ class RequestManager():
                 k["users.firstname"] = data["firstname"]
                 k["users.privilege.manage"] = data["privilege.manage"]
                 self.core.model.store.tables["users"].set(data["username"], k)
-                self.core.model.store.tables["users"].write()
+                self.core.model.persist()
 
         except:
             pass
@@ -136,7 +136,7 @@ class RequestManager():
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.manage"):
             return {"AUTHORIZATION": False}
         self.core.model.store.tables["users"].delete(path[0])
-        self.core.model.store.tables["users"].write()
+        self.core.model.persist()
 
     def tunnel_reload(self, path, data, cookies):
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.manage"):
@@ -192,25 +192,29 @@ class RequestManager():
             return {"AUTHORIZATION": False}
         if len(path) == 3:
             self.core.model.store.set_attr(path[2], path[1], path[0], data)
+            self.core.model.persist()
         elif len(path) == 2:
             self.core.model.store.set(path[1], path[0], data)
+            self.core.model.persist()
         elif len(path) == 1:
             self.core.model.store.set_table(path[0], data)
-        self.core.model.store.cleanup()
-        self.core.model.store.write()
+            self.core.model.persist()
 
     def create_data(self, path, data, cookies):
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.edit"):
             return {"AUTHORIZATION": False}
         if len(path) == 2:
-            return {"ID": self.core.model.store.create(path[1], path[0])}
+            cid = self.core.model.store.create(path[1], path[0])
+            self.core.model.persist()
+            return {"ID": cid}
         elif len(path) == 1:
-            return {"ID": self.core.model.store.create(path[0])}
+            cid = self.core.model.store.create(path[0])
+            self.core.model.persist()
+            return {"ID": cid}
         else:
-            return {"ID": self.core.model.store.create()}
-
-        self.core.model.store.cleanup()
-        self.core.model.store.write()
+            cid = self.core.model.store.create()
+            self.core.model.persist()
+            return {"ID": cid}
 
     def delete_data(self, path, data, cookies):
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.edit"):
@@ -220,20 +224,22 @@ class RequestManager():
         elif len(path) == 1:
             self.core.model.store.delete(None, path[0])
 
-        self.core.model.store.cleanup()
-        self.core.model.store.write()
+        self.core.model.persist()
+        return ["success"]
 
     def cleanup_data(self, path, data, cookies):
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.edit"):
             return {"AUTHORIZATION": False}
-        self.core.model.store.cleanup()
-        self.core.model.store.write()
+
+        self.core.model.persist()
+        return ["success"]
 
     def move_data(self, path, data, cookies):
         if not self.core.model.store.get_attr("users", cookies["USERNAME"].value, "users.privilege.edit"):
             return {"AUTHORIZATION": False}
         if len(path) == 2:
             self.core.model.store.move(path[1], path[0])
+            self.core.model.persist()
             return ["success"]
 
     def find_attr(self, path, data, cookies):
@@ -302,7 +308,8 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_headers()
         self.replay_default()
-        return 
+        return
+
     def do_POST(self):
         self.send_headers()
 

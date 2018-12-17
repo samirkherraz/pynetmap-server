@@ -78,7 +78,7 @@ class Proxy:
             return cmd
 
         except ValueError as e:
-            print(e)
+
             return None
 
 

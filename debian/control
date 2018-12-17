@@ -8,5 +8,5 @@ Homepage: http://git.newgen.cloudlinux.eu/skherraz/pynetmap-server.git
 
 Package: pynetmap-server
 Architecture: all
-Depends: ssh, python3 , awk, sshpass, python3-requests, python3-paramiko
+Depends: ssh, python3 , awk, sshpass,python3-pip
 Description: Pynetmap server is used to map a virtual infrastructure ( proxmox ) 

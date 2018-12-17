@@ -4,7 +4,7 @@ __copyright__ = '(c) Samir HERRAZ 2018-2018'
 __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 
-from .proxmoxer import ProxmoxAPI
+from proxmoxer import ProxmoxAPI
 
 
 class Discover:
@@ -14,7 +14,7 @@ class Discover:
         ssh = self.utils.open_ssh(id)
         if ssh != None:
             table = self.utils.ssh_exec_read(ssh,
-                                                """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
+                                             """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
             ssh.close()
             try:
                 for line in table.split("\n"):

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+pip3 install proxmoxer zabbix_api requests paramiko  
+
 chmod +x /usr/bin/pynetmap-server
 chmod +x /usr/bin/pynetmap-server-bin/*
 echo " -- [ CLEANUP ] -- "
