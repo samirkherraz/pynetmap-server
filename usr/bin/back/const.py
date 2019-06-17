@@ -22,8 +22,5 @@ ADMIN_PASSWORD = configuration.get("Authentification", "Password")
 HISTORY = configuration.getint("Statistics", "History")
 UPDATE_INTERVAL = configuration.getint("Statistics", "Refresh")
 
-TUNNEL_HEADER = """killall sshuttle > /dev/null 2>&1"""
-TUNNEL_CORE = """sshuttle -r [USER]@[IP] [NET] -e 'sshpass -p[PASS] ssh -p [PORT] -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes -o ServerAliveInterval=0 -o TCPKeepAlive=yes'  > /dev/null 2>&1"""
-
 
 DEBUG = False

@@ -2,191 +2,182 @@
 from datetime import timedelta
 from zabbix_api import ZabbixAPI
 from threading import Semaphore
+from Core.Database.DbUtils import DbUtils
+from Core.Utils import Fn
+from Constants import *
+import logging
+"""
+Module -> ELM{
+    history{
+        memory: [....]
+        cpuUsage: [....]
+        disk: [....]
+    },
+    uptime: 45456646
+    mounts: []
+}
+Server -> zabbix {
+        url : ************,
+        username : *******,
+        password : *******
+}
+"""
 
 
 class Monitor:
-    Queue = Semaphore(4)
+    def connect(self):
+        try:
+            zabbix = ZabbixAPI(
+                server=self.db[[DbUtils.SERVER, "zabbix", "url"]])
+            zabbix.login(self.db[[DbUtils.SERVER, "zabbix", "username"]],
+                         self.db[[DbUtils.SERVER, "zabbix", "password"]])
+            return zabbix
+        except Exception as e:
+            logging.error(e)
+            return None
 
-    def login(self):
-        if self.zabbix == None or not self.zabbix.test_login():
-            try:
-                self.zabbix = ZabbixAPI(server=self.store.get_attr(
-                    "server", "zabbix", "url"))
-                self.zabbix.login(self.store.get_attr(
-                    "server", "zabbix", "username"), self.store.get_attr(
-                    "server", "zabbix", "password"))
-            except ValueError as e:
-                return False
-        return self.zabbix != None and self.zabbix.test_login()
+    def update_schema(self):
+        hostlist = self.get_host_list()
+        self.db[[DbUtils.CONFIG, "zabbix"]] = hostlist
 
-    def update_schemat(self):
-        hostlist = self.getHostList()
-        fields = self.store.get_attr("schema", "Noeud", "Fields")
-        fields["base.monitor.zabbix.id"] = hostlist
-        self.store.set_attr("schema", "Noeud", "Fields", fields)
+    def __init__(self):
+        self.db = DbUtils.getInstance()
+        zabbix = self.connect()
+        host_list = self.get_host_list(zabbix)
+        for e in ["Noeud","VM","Container"]:
+            self.db[[DbUtils.SCHEMA, e, "Fields", KEY_MONITOR_ZABBIX_ID]] = host_list
 
-        fields = self.store.get_attr("schema", "VM", "Fields")
-        fields["base.monitor.zabbix.id"] = hostlist
-        self.store.set_attr("schema", "VM", "Fields", fields)
-
-        fields = self.store.get_attr("schema", "Container", "Fields")
-        fields["base.monitor.zabbix.id"] = hostlist
-        self.store.set_attr("schema", "Container", "Fields", fields)
-
-    def __init__(self, model, inst=False):
-        self.utils = model.utils
-        self.store = model.store
-        self.model = model
-        self.zabbix = None
-        self.login()
-        if not inst:
-            self.update_schemat()
-            self.data = None
-
-    def getHostList(self):
+    def get_host_list(self, zabbix):
         return [e["hostid"]+"::"+e["name"]
-                for e in self.zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], })]
+                for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], })]
 
-    def getHostInfo(self, id):
+    def get_host_info(self, zabbix, id):
         return {e["key_"]: e["lastvalue"]
-                for e in self.zabbix.item.get({
+                for e in zabbix.item.get({
                     "output": ["key_", "lastvalue"],
                     "filter": {
                         "hostid": id,
                     }
                 })}
 
-    def isHostUP(self, id):
-        status = self.zabbix.host.get({
+    def is_host_up(self, zabbix, id):
+        status = zabbix.host.get({
             "output": ["status"],
             "filter": {
                 "hostid": id,
             }
         })
         if len(status) > 0:
+            logging.info(status)
             return str(status[0]["status"]) == "0"
         else:
             return False
 
-    def getHostByIP(self, ip):
+    def get_host_by_ip(self, zabbix, ip):
         return [e["hostid"]+"::"+e["name"]
-                for e in self.zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], "filter": {"ip": ip}})]
+                for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], "filter": {"ip": ip}})]
 
-    def populateData(self, id):
-
-        if not self.login():
-            return False
-        zabbixid = self.store.get_attr(
-            "base", id, "base.monitor.zabbix.id")
+    def populate(self, id):
+        zabbix = self.connect()
+        if zabbix == None:
+            return None
+        logging.info(self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]])
+        zabbixid = self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]]
         if zabbixid == None:
-            ip = self.store.get_attr("base", id, "base.net.ip")
-            inf = self.getHostByIP(ip)
+            ip = self.db[[DbUtils.BASE, id, KEY_NET_IP]]
+            inf = self.get_host_by_ip(zabbix, ip)
             zabbixid = inf[0] if len(inf) > 0 else None
             if zabbixid == None:
-                return False
-            self.store.set_attr("base", id, "base.monitor.zabbix.id", zabbixid)
+                return None
+            self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]] = zabbixid
+        else:
+            zabbixid = zabbixid.split("::")[0]
 
-        zabbixid = zabbixid.split("::")[0]
+        if not self.is_host_up(zabbix, zabbixid):
+            return None
 
-        if not self.isHostUP(zabbixid):
-            return False
+        data = self.get_host_info(zabbix, zabbixid)
+        return data
 
-        self.data = self.getHostInfo(zabbixid)
-        if self.data == None:
-            return False
-        return True
-
-    def getItem(self, key):
-        for el in self.data.keys():
+    def get_item(self, data, key):
+        for el in data.keys():
             if el == key:
-                return self.data[el]
+                return data[el]
+        return None
 
-    def getItemList(self, key):
+    def get_item_list(self, data, key):
         d = dict()
-        for el in self.data.keys():
+        for el in data.keys():
             if str(el).startswith(key):
-                d[el] = self.data[el]
+                d[el] = data[el]
         return d
 
     def process(self, id):
-        Monitor.Queue.acquire()
-        inst = Monitor(self.model, True)
-        ret = inst.subprocess(id)
-        del inst
-        Monitor.Queue.release()
-        return ret
-
-    def subprocess(self, id):
-        if not self.populateData(id):
-            return self.utils.STOPPED_STATUS
+        data = self.populate(id)
+        if data == None:
+            return STOPPED_STATUS
         failed = False
 
         try:
             nbcpus = 0
-            self.store.set_attr(
-                "module", id, "module.state.nbcpu", nbcpus)
+            self.db[[DbUtils.MODULE, id, KEY_MONITOR_NB_CPU]] = nbcpus
         except ValueError as e:
-            print(e)
+            logging.error(e)
             failed = True
 
         try:
 
-            memtotal = float(self.getItem("vm.memory.size[total]"))
-            memavail = float(self.getItem("vm.memory.size[available]"))
+            memtotal = float(self.get_item(data,"vm.memory.size[total]"))
+            memavail = float(self.get_item(data,"vm.memory.size[available]"))
 
             mem = "{0:.2f}".format(100*((memtotal-memavail)/memtotal))
-            self.store.set_attr("module", id, "module.state.history.memory",
-                                self.utils.history_append(self.store.get_attr(
-                                    "module", id, "module.state.history.memory"), str(mem)))
-        except ValueError as e:
-            print(e)
-            failed = True
+            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]] is None:
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]] = list()
+            Fn.history(
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]], str(mem))
 
-        try:
-            nbcpus = 0
-            self.store.set_attr(
-                "module", id, "module.state.nbcpu", nbcpus)
         except ValueError as e:
-            print(e)
+            logging.error(e)
             failed = True
 
         try:
 
             cpuusage = "{0:.2f}".format(
-                float(self.getItem("system.cpu.load[percpu,avg5]")))
-            self.store.set_attr("module", id, "module.state.history.cpuusage",
-                                self.utils.history_append(self.store.get_attr(
-                                    "module", id, "module.state.history.cpuusage"), str(cpuusage)))
+                float(self.get_item(data,"system.cpu.load[percpu,avg5]")))
+            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]] is None:
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]] = list()
+            Fn.history(
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]], str(cpuusage))
         except ValueError as e:
-            print(e)
+            logging.error(e)
+            failed = True
+
+        try:
+            uptime = self.get_item(data,"system.uptime")
+            self.db[[DbUtils.MODULE, id, "uptime"]] = str(
+                timedelta(seconds=(int(float(uptime)))))
+        except ValueError as e:
+            logging.error(e)
 
             failed = True
 
         try:
-            uptime = self.getItem("system.uptime")
-            self.store.set_attr("module", id, "module.state.uptime", str(
-                timedelta(seconds=(int(float(uptime))))))
-        except ValueError as e:
-            print(e)
 
-            failed = True
-
-        try:
-
-            disktotal = float(self.getItem("vfs.fs.size[/,total]"))
-            diskused = float(self.getItem("vfs.fs.size[/,used]"))
+            disktotal = float(self.get_item(data,"vfs.fs.size[/,total]"))
+            diskused = float(self.get_item(data,"vfs.fs.size[/,used]"))
 
             disk = "{0:.2f}".format(100*(diskused/disktotal))
-            self.store.set_attr("module", id, "module.state.history.disk",
-                                self.utils.history_append(self.store.get_attr(
-                                    "module", id, "module.state.history.disk"),  str(disk)))
+            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]] is None:
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]] = list()
+            Fn.history(
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]],  str(disk))
         except ValueError as e:
-            print(e)
+            logging.error(e)
 
             failed = True
 
         try:
-            dataset = self.getItemList("vfs.fs.size")
+            dataset = self.get_item_list(data,"vfs.fs.size")
             mounts = dict()
             for e in dataset.keys():
                 volume = e.replace("vfs.fs.size[", "").split(",")[0]
@@ -202,13 +193,14 @@ class Monitor:
                 k["usage"] = str("{0:.2f}".format(
                     100-(float(mounts[line]["pfree"]))))+" %"
                 lst.append(k)
-            self.store.set_attr(
-                "module", id, "module.state.list.mounts", lst)
+            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] is None:
+                self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] = list()
+            self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] = lst
         except ValueError as e:
-            print(e)
+            logging.error(e)
             failed = True
 
         if not failed:
-            return self.utils.RUNNING_STATUS
+            return RUNNING_STATUS
         else:
-            return self.utils.UNKNOWN_STATUS
+            return UNKNOWN_STATUS

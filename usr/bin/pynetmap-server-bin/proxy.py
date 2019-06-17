@@ -7,11 +7,13 @@ __licence__ = 'GPLv3'
 
 import os
 import sys
+import logging
+logging.basicConfig(filename="test.log", level=logging.DEBUG)
 
-from model import Model
-
-
-print("""
+#from model import Model
+from Core.Database.DbUtils import DbUtils
+from Constants import *
+print(""" 
   _____       _   _      _   __  __          _____
  |  __ \     | \ | |    | | |  \/  |   /\   |  __ \\
  | |__) |   _|  \| | ___| |_| \  / |  /  \  | |__) |
@@ -23,26 +25,52 @@ print("""
 
 """)
 
-
 class Proxy:
+
+    def ip_net_in_network(self,ip, net):
+        ipaddr = int(''.join(['%02x' % int(x) for x in ip.split('.')]), 16)
+        netstr, bits = net.split('/')
+        netaddr = int(''.join(['%02x' % int(x)
+                               for x in netstr.split('.')]), 16)
+        mask = (0xffffffff << (32 - int(bits))) & 0xffffffff
+        return (ipaddr & mask) == (netaddr & mask)
+
+
+    def find_tunnel(self, id):
+        ip = str(self.db[[DbUtils.BASE, id,KEY_NET_IP]]).strip()
+
+        path = self.db.find_path(id)
+        if len(path) <= 2:
+            return None
+
+        pnetwork = self.db[[DbUtils.BASE, path[1], KEY_TUNNEL_NETWORK]]
+
+        if pnetwork != None and pnetwork != "" and self.ip_net_in_network(ip, str(pnetwork).strip()):
+            return path[1]
+
+        for key in self.db.find_children(path[0]):
+            try:
+                network = str(self.db[[DbUtils.BASE, key, KEY_TUNNEL_NETWORK]]).strip()
+                if self.ip_net_in_network(ip, network):
+                    return key
+
+            except:
+                pass
+        return None
+
     def __init__(self):
-        self.model = Model()
-        self.model.load()
+        self.db = DbUtils.getInstance()
 
     def build_ssh_command(self, id):
         cmds = []
         try:
-            tunnel = self.model.utils.find_tunnel(id)
+            tunnel = self.find_tunnel(id)
 
             if tunnel != None:
-                tip = self.model.store.get_attr(
-                    "base", tunnel, "base.tunnel.ip")
-                tport = self.model.store.get_attr(
-                    "base", tunnel, "base.tunnel.port")
-                tuser = self.model.store.get_attr(
-                    "base", tunnel, "base.tunnel.user")
-                tpass = self.model.store.get_attr(
-                    "base", tunnel, "base.tunnel.password")
+                tip = self.db[[DbUtils.BASE, tunnel, KEY_TUNNEL_IP]]
+                tport = self.db[[DbUtils.BASE, tunnel, KEY_TUNNEL_PORT]]
+                tuser = self.db[[DbUtils.BASE, tunnel, KEY_TUNNEL_USER]]
+                tpass = self.db[[DbUtils.BASE, tunnel, KEY_TUNNEL_PASSWORD]]
                 source = "sshpass -p"
                 source += tpass.replace("!", "\\!")
                 source += " ssh -q -tt -p "
@@ -57,11 +85,10 @@ class Proxy:
             else:
                 source = ""
 
-            ip = self.model.store.get_attr("base", id, "base.net.ip")
-            password = self.model.store.get_attr(
-                "base", id, "base.ssh.password")
-            username = self.model.store.get_attr("base", id, "base.ssh.user")
-            port = self.model.store.get_attr("base", id, "base.ssh.port")
+            ip = self.db[[DbUtils.BASE, id, KEY_NET_IP]]
+            password = self.db[[DbUtils.BASE, id, KEY_SSH_PASSWORD]]
+            username = self.db[[DbUtils.BASE, id, KEY_SSH_USER]]
+            port = self.db[[DbUtils.BASE,  id, KEY_SSH_PORT]]
             target = "sshpass -p"
             target += password.replace("!", "\\!")
             target += " ssh -q -tt -p "
@@ -78,7 +105,6 @@ class Proxy:
             return cmd
 
         except ValueError as e:
-
             return None
 
 

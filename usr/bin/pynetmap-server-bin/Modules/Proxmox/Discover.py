@@ -5,157 +5,150 @@ __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 
 from proxmoxer import ProxmoxAPI
+from Core.Database.DbUtils import DbUtils
+from Core.Utils import Fn
+from Core.Utils.SSHLib import SSHLib
+from Constants import *
 
-
+import logging
 class Discover:
 
     def arp_table(self, id):
         arp = dict()
-        ssh = self.utils.open_ssh(id)
+        ssh = self.sshlib.open_ssh(id)
         if ssh != None:
-            table = self.utils.ssh_exec_read(ssh,
+            table = self.sshlib.ssh_exec_read(ssh,
                                              """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
             ssh.close()
             try:
                 for line in table.split("\n"):
                     try:
-                        arp[line.split("=")[1].upper()] = line.split("=")[
-                            0].upper()
-                    except:
+                        arp[line.split("=")[1].upper()] = str(line.split("=")[
+                            0].upper())
+                        arp[line.split("=")[0].upper()] = str(line.split("=")[
+                            1].upper())
+                    except Exception as e:
+                        logging.error(e)
                         pass
-            except:
+            except Exception as e:
+                logging.error(e)
                 pass
+        else:
+            logging.error("NO SSH COOO")
         return arp
 
     def find(self, vmid, id):
-        for k in self.store.get_children(id):
-            if self.store.get_attr("base", k, "base.proxmox.id") == vmid:
+        for k in self.db.find_children(id):
+            if self.db[[DbUtils.BASE, k,KEY_DISCOVER_PROXMOX_ID]] == vmid:
                 return k
-        newid = self.store.create(id)
-        self.utils.debug('System::Discovery',
-                         self.store.get_attr("base", id, "base.name")+"::"+str(vmid))
+        newid = self.db.create(id)
         return newid
 
-    def __init__(self, model):
-        self.utils = model.utils
-        self.store = model.store
+    def __init__(self):
+        self.db = DbUtils.getInstance()
+        self.sshlib = SSHLib()
 
     def process(self, id):
-        localport = self.utils.open_port(id, "8006")
+        logging.info("process "+str(id))
+        localport = self.sshlib.open_port(id, "8006")
         try:
             if localport != None:
                 ip = "localhost"
                 port = str(localport)
             else:
-                ip = str(self.store.get_attr(
-                    "base", id, "base.net.ip")).strip()
+                ip = str(self.db[[DbUtils.BASE, id,KEY_NET_IP]]).strip()
                 port = "8006"
 
             proxmox = ProxmoxAPI(ip, port=port,
-                                 user=str(self.store.get_attr(
-                                     "base", id, "base.ssh.user")).strip()+'@pam',
-                                 password=str(self.store.get_attr(
-                                     "base", id, "base.ssh.password")).strip(),
+                                 user=str(self.db[[DbUtils.BASE, id,KEY_SSH_USER]]).strip()+'@pam',
+                                 password=str(self.db[[DbUtils.BASE, id,KEY_SSH_PASSWORD]]).strip(),
                                  verify_ssl=False)
 
-            self.store.set_attr(
-                "module", id, "module.discover.proxmox", "Yes")
-
+            self.db[[DbUtils.MODULE, id,KEY_DISCOVER_PROXMOX_STATUS]] =  "Yes"
+            logging.info("PVE API ACCES OK")
             for node in proxmox.nodes.get():
-                self.store.set_attr(
-                    "base", id, "base.name", node['node'])
+                self.db[[DbUtils.BASE, id, KEY_NAME]] = node['node']
                 arp = self.arp_table(id)
                 try:
                     for vm in proxmox.nodes(node['node']).qemu.get():
                         k = self.find(vm["vmid"], id)
-                        self.store.set_attr(
-                            "base", k, "base.name", vm["name"])
-
-                        self.store.set_attr(
-                            "base", k, "base.proxmox.id", vm["vmid"])
-                        self.store.set_attr(
-                            "base", k, "base.core.schema", "VM")
+                        logging.info("DISCOVER :: "+ vm["name"])
+                        self.db[[DbUtils.BASE, k, KEY_NAME]] =  vm["name"]
+                        self.db[[DbUtils.BASE, k, KEY_DISCOVER_PROXMOX_ID]] =  vm["vmid"]
+                        self.db[[DbUtils.BASE, k, KEY_TYPE]] =  "VM"
+                        
                         for i in proxmox.nodes(node['node']).qemu(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
                                     eth = i
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).qemu(
                                         vm["vmid"]).config.get()[i].split("=")[1].split(",")[0]
-                                    self.store.set_attr(
-                                        "base", k, "base.net.mac", mac)
                                     ip = arp[mac]
 
-                                    self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-
-                                except:
+                                    self.db[[DbUtils.BASE, k, KEY_NET_ETH]] =  eth
+                                    self.db[[DbUtils.BASE, k, KEY_NET_MAC]] =  mac
+                                    self.db[[DbUtils.BASE, k, KEY_NET_IP]] =  ip
+                                except Exception as e:
+                                    logging.error(e)
                                     pass
 
-                except:
+                except Exception as e:
+                    logging.error(e)
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).lxc.get():
                         k = self.find(vm["vmid"], id)
-                        self.store.set_attr(
-                            "base", k, "base.name", vm["name"])
-                        self.store.set_attr(
-                            "base", k, "base.proxmox.id", vm["vmid"])
-                        self.store.set_attr(
-                            "base", k, "base.core.schema", "Container")
+                        self.db[[DbUtils.BASE, k, KEY_NAME]] =  vm["name"]
+                        self.db[[DbUtils.BASE, k, KEY_DISCOVER_PROXMOX_ID]] =  vm["vmid"]
+                        self.db[[DbUtils.BASE, k, KEY_TYPE]] =  "Container"
 
                         for i in proxmox.nodes(node['node']).lxc(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
 
                                     eth = i
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).lxc(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
-                                    self.store.set_attr(
-                                        "base", k, "base.net.mac", mac)
                                     ip = arp[mac]
-                                    self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-
-                                except:
+   
+                                    self.db[[DbUtils.BASE, k, KEY_NET_ETH]] =  eth
+                                    self.db[[DbUtils.BASE, k, KEY_NET_MAC]] =  mac
+                                    self.db[[DbUtils.BASE, k, KEY_NET_IP]] =  ip
+                                except Exception as e:
+                                    logging.error(e)
                                     pass
 
-                except:
+                except Exception as e :
+                    logging.error(e)
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).openvz.get():
                         k = self.find(vm["vmid"], id)
-                        self.store.set_attr(
-                            "base", k, "base.name", vm["name"])
-                        self.store.set_attr(
-                            "base", k, "base.proxmox.id", vm["vmid"])
-                        self.store.set_attr(
-                            "base", k, "base.core.schema", "Container")
+                        self.db[[DbUtils.BASE, k, KEY_NAME]] =  vm["name"]
+                        self.db[[DbUtils.BASE, k, KEY_DISCOVER_PROXMOX_ID]] =  vm["vmid"]
+                        self.db[[DbUtils.BASE, k, KEY_TYPE]] =  "Container"
                         for i in proxmox.nodes(node['node']).openvz(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
                                     eth = i
-                                    self.store.set_attr(
-                                        "base", k, "base.net.eth", eth)
                                     mac = proxmox.nodes(node['node']).openvz(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
-                                    self.store.set_attr(
-                                        "base", k, "base.net.mac", mac)
                                     ip = arp[mac]
-                                    self.store.set_attr(
-                                        "base", k, "base.net.ip", ip)
-
-                                except:
+                                    self.db[[DbUtils.BASE, k, KEY_NET_ETH]] =  eth
+                                    self.db[[DbUtils.BASE, k, KEY_NET_MAC]] =  mac
+                                    self.db[[DbUtils.BASE, k, KEY_NET_IP]] =  ip
+                                except Exception as e:
+                                    logging.error(e)
                                     pass
 
-                except:
+                except Exception as e:
+                    logging.error(e)
                     pass
-        except:
-            self.store.set_attr(
-                "module", id, "module.discover.proxmox", "No")
+        except Exception as e:
+            logging.error(e)
+            logging.info("Unable to access proxmox api")
+            self.db[[DbUtils.MODULE, id,KEY_DISCOVER_PROXMOX_STATUS]] =  "No"
+
 
         if localport != None:
-            self.utils.close_port(localport)
+            self.sshlib.close_port(localport)

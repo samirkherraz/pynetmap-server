@@ -5,23 +5,25 @@ __version__ = '1.1.0'
 __licence__ = 'GPLv3'
 
 import os
-import socket
-import threading
-from threading import Lock
-import time
-import paramiko
-from const import HISTORY, DEBUG
-from forward import forward_tunnel
-from threading import Thread
 import random
+import socket
 import string
+import time
+from threading import Lock, Thread
+from Core.Database.DbUtils import DbUtils
+import logging
+import paramiko
+from Constants import *
+
+from .forward import forward_tunnel
+
 paramiko.util.log_to_file("/dev/null")
 
 
-class Utils:
+class SSHLib:
 
-    def __init__(self, database):
-        self.store = database
+    def __init__(self):
+        self.db = DbUtils.getInstance()
         self.ports = dict()
         self._portsl = Lock()
 
@@ -30,13 +32,13 @@ class Utils:
         try:
             _, stdout, _ = ssh.exec_command(
                 cmd, get_pty=True, timeout=15)
-            output = stdout.read()
-            for line in output.splitlines():
+            output = stdout.readlines()
+            for line in output:
                 if line.strip() != "":
-                    out += line.strip() + "\n"
+                    out += str(line.strip()) + str("\n")
             return str(out).strip()
-        except:
-            Utils.debug(name, "SSH Timeout for command\n"+cmd, 1)
+        except ValueError as e:
+            logging.error(e)
 
     def ip_net_in_network(ip, net):
         ipaddr = int(''.join(['%02x' % int(x) for x in ip.split('.')]), 16)
@@ -47,27 +49,25 @@ class Utils:
         return (ipaddr & mask) == (netaddr & mask)
 
     def find_tunnel(self, id):
-        ip = str(self.store.get_attr(
-            "base", id, "base.net.ip")).strip()
+        ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
 
-        path = self.store.find_path(id)
+        path = self.db.find_path(id)
         if len(path) <= 2:
             return None
 
-        pnetwork = self.store.get_attr(
-            "base", path[1], "base.tunnel.network")
+        pnetwork = self.db[[DbUtils.BASE, path[1], "tunnel.network"]]
 
         if pnetwork != None and pnetwork != "" and self.ip_net_in_network(ip, str(pnetwork).strip()):
             return path[1]
 
-        for key in self.store.get_children(path[0]):
+        for key in self.db.get_children(path[0]):
             try:
-                network = str(self.store.get_attr(
-                    "base", key, "base.tunnel.network")).strip()
+                network = str(self.db[[DbUtils.BASE, key, "tunnel.network"]]).strip()
                 if self.ip_net_in_network(ip, network):
                     return key
 
-            except:
+            except Exception as e:
+                logging.error(e)
                 pass
         return None
 
@@ -76,23 +76,16 @@ class Utils:
             os.system("rm ~/.ssh/known_hosts > /dev/null 2>&1")
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ip = str(self.store.get_attr("base", id, "base.net.ip")).strip()
-            password = str(self.store.get_attr(
-                "base", id, "base.ssh.password")).strip()
-            username = str(self.store.get_attr(
-                "base", id, "base.ssh.user")).strip()
-            port = self.store.get_attr(
-                "base", id, "base.ssh.port")
+            ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
+            password = str(self.db[[DbUtils.BASE, id, KEY_SSH_PASSWORD]]).strip()
+            username = str(self.db[[DbUtils.BASE, id, KEY_SSH_USER]]).strip()
+            port = self.db[[DbUtils.BASE, id, KEY_SSH_PORT]]
             tunnel = self.find_tunnel(id)
             if tunnel != None:
-                tip = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.ip")).strip()
-                tport = self.store.get_attr(
-                    "base", tunnel, "base.tunnel.port")
-                tuser = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.user")).strip()
-                tpass = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.password")).strip()
+                tip = str(self.db[[DbUtils.BASE, tunnel, "tunnel.ip"]]).strip()
+                tport = self.db[[DbUtils.BASE, tunnel, "tunnel.port"]]
+                tuser = str(self.db[[DbUtils.BASE, tunnel, "tunnel.user"]]).strip()
+                tpass = str(self.db[[DbUtils.BASE, tunnel, "tunnel.password"]]).strip()
                 source = "sshpass -p"
                 source += tpass.replace("!", "\\!")
                 source += " ssh -p "
@@ -112,31 +105,9 @@ class Utils:
                             password=password, timeout=5)
 
             return ssh
-        except:
+        except Exception as e:
+            logging.error(e)
             return None
-
-    def debug(elm, msg, level=0):
-        if level == Utils.DEBUG_NONE:
-            if not DEBUG:
-                return
-            lvl = "[  Info  ]"
-        if level == Utils.DEBUG_NOTICE:
-            if not DEBUG:
-                return
-            lvl = "[  Notice  ]"
-        elif level == Utils.DEBUG_WARNING:
-            lvl = "[  Warning ]"
-        elif level == Utils.DEBUG_ERROR:
-            lvl = "[  Error   ]"
-        else:
-            return
-
-        head = lvl + " [ " + str(elm)
-        while len(head) < 35:
-            head += " "
-        head += " ] - "
-        with Utils.STDOUT:
-            print(head + msg)
 
     def history_append(lst, value):
         if lst == None:
@@ -162,17 +133,11 @@ class Utils:
             tunnel = self.find_tunnel(id)
             localport = str(self.find_free_port()).strip()
             if tunnel != None:
-                ip = str(self.store.get_attr(
-                    "base", id, "base.net.ip")).strip()
-                tip = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.ip")).strip()
-                tport = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.port")).strip()
-                tuser = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.user")).strip()
-                tpass = str(self.store.get_attr(
-                    "base", tunnel, "base.tunnel.password")).strip()
-
+                ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
+                tip = str(self.db[[DbUtils.BASE, tunnel, "tunnel.ip"]]).strip()
+                tport = self.db[[DbUtils.BASE, tunnel, "tunnel.port"]]
+                tuser = str(self.db[[DbUtils.BASE, tunnel, "tunnel.user"]]).strip()
+                tpass = str(self.db[[DbUtils.BASE, tunnel, "tunnel.password"]]).strip()
                 try:
 
                     self.ports[localport +
@@ -188,21 +153,18 @@ class Utils:
                     self.ports[localport+"TH"].daemon = True
                     self.ports[localport+"TH"].start()
 
-                    self.debug("System::Forwarding",
-                               "Port "+ip+":"+port+" Mapped to localhost:"+localport)
+                    
                     return localport
-                except:
+                except Exception as e:
+                    logging.error(e)
 
-                    self.debug("System::Forwarding",
-                               "Unable to map "+ip+":"+port+" to localhost:"+localport)
+                   
                     return None
             else:
-                self.debug("System::Forwarding",
-                           "Not required")
+              
                 return None
-        except:
-            self.debug("System::Forwarding",
-                       "Not required")
+        except Exception as e:
+            logging.error(e)
             return None
 
     def close_port(self, port):
@@ -212,30 +174,8 @@ class Utils:
             del self.ports[str(port)]
             del self.ports[str(port)+"TH"]
             del self.ports[str(port)+"TR"]
-        self.debug("System",
-                   "Port "+port+" Closed.")
+      
 
-    def change_ssh_password(self):
-        new = ''.join(random.choice(
-            string.ascii_uppercase + string.digits) for _ in range(32))
-        old = self.store.get("server", "server.ssh.password")
-
-        os.system('/bin/bash -c \'echo -e "'+old +
-                  '\\n'+new+'\\n'+new+'" | passwd \'')
-        self.store.set("server", "server.ssh.password", new)
-        self.store.write()
-
-    history_append = staticmethod(history_append)
-    debug = staticmethod(debug)
     ip_net_in_network = staticmethod(ip_net_in_network)
     ssh_exec_read = staticmethod(ssh_exec_read)
-    DEBUG_ERROR = 2
-    DEBUG_NOTICE = 0
-    DEBUG_NONE = -1
-    DEBUG_WARNING = 1
-
-    RUNNING_STATUS = "running"
-    STOPPED_STATUS = "stopped"
-    UNKNOWN_STATUS = "unknown"
-
-    STDOUT = Lock()
+  
