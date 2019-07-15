@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 __author__ = 'Samir KHERRAZ'
-__copyright__ = '(c) Samir HERRAZ 2018-2018'
-__version__ = '1.1.0'
+__copyright__ = '(c) Samir HERRAZ 2018-2019'
+__version__ = '1.2.0'
 __licence__ = 'GPLv3'
 
 import os
@@ -49,20 +49,20 @@ class SSHLib:
         return (ipaddr & mask) == (netaddr & mask)
 
     def find_tunnel(self, id):
-        ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
+        ip = str(self.db[DB_BASE, id, KEY_NET_IP]).strip()
 
         path = self.db.find_path(id)
         if len(path) <= 2:
             return None
 
-        pnetwork = self.db[[DbUtils.BASE, path[1], "tunnel.network"]]
+        pnetwork = self.db[DB_BASE, path[1], KEY_TUNNEL_NETWORK]
 
         if pnetwork != None and pnetwork != "" and self.ip_net_in_network(ip, str(pnetwork).strip()):
             return path[1]
 
         for key in self.db.get_children(path[0]):
             try:
-                network = str(self.db[[DbUtils.BASE, key, "tunnel.network"]]).strip()
+                network = str(self.db[DB_BASE, key, KEY_TUNNEL_NETWORK]).strip()
                 if self.ip_net_in_network(ip, network):
                     return key
 
@@ -76,16 +76,16 @@ class SSHLib:
             os.system("rm ~/.ssh/known_hosts > /dev/null 2>&1")
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
-            password = str(self.db[[DbUtils.BASE, id, KEY_SSH_PASSWORD]]).strip()
-            username = str(self.db[[DbUtils.BASE, id, KEY_SSH_USER]]).strip()
-            port = self.db[[DbUtils.BASE, id, KEY_SSH_PORT]]
+            ip = str(self.db[DB_BASE, id, KEY_NET_IP]).strip()
+            password = str(self.db[DB_BASE, id, KEY_SSH_PASSWORD]).strip()
+            username = str(self.db[DB_BASE, id, KEY_SSH_USER]).strip()
+            port = self.db[DB_BASE, id, KEY_SSH_PORT]
             tunnel = self.find_tunnel(id)
             if tunnel != None:
-                tip = str(self.db[[DbUtils.BASE, tunnel, "tunnel.ip"]]).strip()
-                tport = self.db[[DbUtils.BASE, tunnel, "tunnel.port"]]
-                tuser = str(self.db[[DbUtils.BASE, tunnel, "tunnel.user"]]).strip()
-                tpass = str(self.db[[DbUtils.BASE, tunnel, "tunnel.password"]]).strip()
+                tip = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_IP]).strip()
+                tport = self.db[DB_BASE, tunnel, KEY_TUNNEL_PORT]
+                tuser = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_USER]).strip()
+                tpass = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_PASSWORD]).strip()
                 source = "sshpass -p"
                 source += tpass.replace("!", "\\!")
                 source += " ssh -p "
@@ -112,6 +112,7 @@ class SSHLib:
     def history_append(lst, value):
         if lst == None:
             lst = []
+        HISTORY = self.db[DB_SERVER, "trigger", "history_keep"]
         if len(lst) > HISTORY:
             while len(lst) > HISTORY/2:
                 lst.pop()
@@ -133,11 +134,11 @@ class SSHLib:
             tunnel = self.find_tunnel(id)
             localport = str(self.find_free_port()).strip()
             if tunnel != None:
-                ip = str(self.db[[DbUtils.BASE, id, KEY_NET_IP]]).strip()
-                tip = str(self.db[[DbUtils.BASE, tunnel, "tunnel.ip"]]).strip()
-                tport = self.db[[DbUtils.BASE, tunnel, "tunnel.port"]]
-                tuser = str(self.db[[DbUtils.BASE, tunnel, "tunnel.user"]]).strip()
-                tpass = str(self.db[[DbUtils.BASE, tunnel, "tunnel.password"]]).strip()
+                ip = str(self.db[DB_BASE, id, KEY_NET_IP]).strip()
+                tip = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_IP]).strip()
+                tport = self.db[DB_BASE, tunnel, KEY_TUNNEL_PORT]
+                tuser = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_USER]).strip()
+                tpass = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_PASSWORD]).strip()
                 try:
 
                     self.ports[localport +

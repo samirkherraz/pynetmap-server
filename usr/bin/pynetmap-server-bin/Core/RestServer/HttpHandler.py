@@ -3,26 +3,28 @@ import json
 
 from http.server import BaseHTTPRequestHandler
 from Core.RestServer.Actions import Actions
-from Settings import DEBUG
+from Constants import *
 import logging
 
 class HttpHandler(BaseHTTPRequestHandler):
 
     ACTIONS = Actions()
     URLS = {
-        "/core/data/get": ACTIONS.get_data,
-        "/core/data/set": ACTIONS.set_data,
-        "/core/data/create": ACTIONS.create_data,
-        "/core/data/delete": ACTIONS.delete_data,
-        "/core/data/move": ACTIONS.move_data,
-        "/core/data/cleanup": ACTIONS.cleanup_data,
-        "/core/data/find/path": ACTIONS.find_path,
-        "/core/data/find/attr": ACTIONS.find,
-        "/core/data/find/parent": ACTIONS.find_parent,
-        "/core/data/find/children": ACTIONS.find_children,
-        "/core/auth/login": ACTIONS.user_auth,
-        "/core/auth/access": ACTIONS.user_access,
-        "/core/auth/check": ACTIONS.user_check,
+        "/data/get": (True,None, ACTIONS.get_data),
+        "/data/set": (True,"edit", ACTIONS.set_data),
+        "/data/create": (True,"edit",ACTIONS.create_data),
+        "/data/delete": (True,"edit",ACTIONS.delete_data),
+        "/data/move": (True,"edit",ACTIONS.move_data),
+        "/data/cleanup": (True,"edit",ACTIONS.cleanup_data),
+        "/data/find/path": (True, None,ACTIONS.find_path),
+        "/data/find/attr": (True,None,ACTIONS.find),
+        "/data/find/parent": (True,None,ACTIONS.find_parent),
+        "/data/find/children": (True,None,ACTIONS.find_children),
+        #"/auth/create": (True,"manage",ACTIONS.user_create),
+        "/auth/login": (False,None,ACTIONS.user_auth),
+        "/auth/access": (True,None,ACTIONS.user_access),
+        "/auth/check": (True,None,ACTIONS.user_auth_check),
+        "/ping": (False,None,ACTIONS.ping),
     }
 
     def read_data(self):
@@ -79,7 +81,14 @@ class HttpHandler(BaseHTTPRequestHandler):
                 args = [x for x in k.split("/") if x]
                 npaths = [x for x in self.path.split(
                     "/")[::-1] if x and x not in args]
-                self.success(HttpHandler.URLS[k](npaths, data, cookies))
+                (login, privilege, fn) = HttpHandler.URLS[k]
+                if login and not HttpHandler.ACTIONS.user_check(cookies):
+                    self.fail({"AUTHORIZATION": False})
+                    return
+                if privilege is not None and HttpHandler.ACTIONS.user_privilege(cookies,privilege):
+                    self.fail({"AUTHORIZATION": False})
+                    return  
+                self.success(fn(npaths, data, cookies))
                 return
 
         self.fail("operation not supported")

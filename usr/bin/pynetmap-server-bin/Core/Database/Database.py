@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 __author__ = 'Samir KHERRAZ'
-__copyright__ = '(c) Samir HERRAZ 2018-2018'
-__version__ = '1.1.0'
+__copyright__ = '(c) Samir HERRAZ 2018-2019'
+__version__ = '1.2.0'
 __licence__ = 'GPLv3'
 
 import time
@@ -45,17 +45,27 @@ class Database:
         return out
 
     def __getitem__(self, name):
-        if type(name) != list:
-            name = [name, ]
-        t = name.pop(0)
-        return self._tables[t][name]
+        if type(name) is str:
+            t = name
+            others = []
+        elif type(name) is tuple:
+            t, *others = name
+        elif type(name) is list:
+            t = name.pop(0)
+            others = name
+
+        return self._tables[t][others]
 
     def __setitem__(self, name, value):
         with self._lock:
-            if type(name) != list:
-                name = [name, ]
-            t = name.pop(0)
-            self._tables[t][name] = value
+            if type(name) is str:
+                t = name
+            elif type(name) is tuple:
+                t, *others = name
+            elif type(name) is list:
+                t = name.pop(0)
+                others = name
+            self._tables[t][others] = value
 
     def genid(self):
         return "EL_"+str(str(time.time()))+''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
@@ -113,7 +123,7 @@ class Database:
             for key in list(lst.keys()):
                 if key == parent_id:
                     del lst[key][newid]
-                    self._tables["structure"]._changed = True
+                    self._tables["structure"].save()
                     self.reindex()
                     return True
                 elif self.delete(parent_id, newid, lst[key]):
@@ -183,12 +193,3 @@ class Database:
     def persist(self):
         self.write()
 
-
-def Test():
-    db = Database()
-    db.read()
-    logging.info(db[DbUtils.SCHEMA])
-    logging.info(db.find(DbUtils.BASE, "base.type", "Proxmox"))
-    logging.info(db.find(DbUtils.BASE, "base.os", "Linux"))
-    db[DbUtils.CONFIG]["SSH"]["name"] = "samir"
-    logging.info(db[DbUtils.CONFIG].toDict())

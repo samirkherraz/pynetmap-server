@@ -28,28 +28,24 @@ class Monitor:
     def connect(self):
         try:
             zabbix = ZabbixAPI(
-                server=self.db[[DbUtils.SERVER, "zabbix", "url"]])
-            zabbix.login(self.db[[DbUtils.SERVER, "zabbix", "username"]],
-                         self.db[[DbUtils.SERVER, "zabbix", "password"]])
+                server=self.db[DB_SERVER, "zabbix", "url"])
+            zabbix.login(self.db[DB_SERVER, "zabbix", "username"],
+                         self.db[DB_SERVER, "zabbix", "password"])
             return zabbix
         except Exception as e:
             logging.error(e)
             return None
 
-    def update_schema(self):
-        hostlist = self.get_host_list()
-        self.db[[DbUtils.CONFIG, "zabbix"]] = hostlist
-
     def __init__(self):
         self.db = DbUtils.getInstance()
         zabbix = self.connect()
         host_list = self.get_host_list(zabbix)
+        host_list.sort()
         for e in ["Noeud","VM","Container"]:
-            self.db[[DbUtils.SCHEMA, e, "Fields", KEY_MONITOR_ZABBIX_ID]] = host_list
+            self.db[DB_SCHEMA, e, "Fields", KEY_MONITOR_ZABBIX_ID] = host_list
 
     def get_host_list(self, zabbix):
-        return [e["hostid"]+"::"+e["name"]
-                for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], })]
+        return [e["name"]+"::"+e["hostid"] for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], })]
 
     def get_host_info(self, zabbix, id):
         return {e["key_"]: e["lastvalue"]
@@ -74,24 +70,24 @@ class Monitor:
             return False
 
     def get_host_by_ip(self, zabbix, ip):
-        return [e["hostid"]+"::"+e["name"]
+        return [e["name"]+"::"+e["hostid"]
                 for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], "filter": {"ip": ip}})]
 
     def populate(self, id):
         zabbix = self.connect()
         if zabbix == None:
             return None
-        logging.info(self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]])
-        zabbixid = self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]]
+        logging.info(self.db[DB_BASE, id, KEY_MONITOR_ZABBIX_ID])
+        zabbixid = self.db[DB_BASE, id, KEY_MONITOR_ZABBIX_ID]
         if zabbixid == None:
-            ip = self.db[[DbUtils.BASE, id, KEY_NET_IP]]
+            ip = self.db[DB_BASE, id, KEY_NET_IP]
             inf = self.get_host_by_ip(zabbix, ip)
             zabbixid = inf[0] if len(inf) > 0 else None
             if zabbixid == None:
                 return None
-            self.db[[DbUtils.BASE, id, KEY_MONITOR_ZABBIX_ID]] = zabbixid
+            self.db[DB_BASE, id, KEY_MONITOR_ZABBIX_ID] = zabbixid
         else:
-            zabbixid = zabbixid.split("::")[0]
+            zabbixid = zabbixid.split("::")[1]
 
         if not self.is_host_up(zabbix, zabbixid):
             return None
@@ -120,8 +116,8 @@ class Monitor:
 
         try:
             nbcpus = 0
-            self.db[[DbUtils.MODULE, id, KEY_MONITOR_NB_CPU]] = nbcpus
-        except ValueError as e:
+            self.db[DB_MODULE, id, KEY_MONITOR_NB_CPU] = nbcpus
+        except Exception as e:
             logging.error(e)
             failed = True
 
@@ -131,12 +127,12 @@ class Monitor:
             memavail = float(self.get_item(data,"vm.memory.size[available]"))
 
             mem = "{0:.2f}".format(100*((memtotal-memavail)/memtotal))
-            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]] is None:
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]] = list()
+            if self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY] is None:
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY] = list()
             Fn.history(
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY]], str(mem))
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY], str(mem))
 
-        except ValueError as e:
+        except Exception as e:
             logging.error(e)
             failed = True
 
@@ -144,19 +140,19 @@ class Monitor:
 
             cpuusage = "{0:.2f}".format(
                 float(self.get_item(data,"system.cpu.load[percpu,avg5]")))
-            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]] is None:
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]] = list()
+            if self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE] is None:
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE] = list()
             Fn.history(
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE]], str(cpuusage))
-        except ValueError as e:
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE], str(cpuusage))
+        except Exception as e:
             logging.error(e)
             failed = True
 
         try:
             uptime = self.get_item(data,"system.uptime")
-            self.db[[DbUtils.MODULE, id, "uptime"]] = str(
+            self.db[DB_MODULE, id, "uptime"] = str(
                 timedelta(seconds=(int(float(uptime)))))
-        except ValueError as e:
+        except Exception as e:
             logging.error(e)
 
             failed = True
@@ -167,11 +163,11 @@ class Monitor:
             diskused = float(self.get_item(data,"vfs.fs.size[/,used]"))
 
             disk = "{0:.2f}".format(100*(diskused/disktotal))
-            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]] is None:
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]] = list()
+            if self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK] is None:
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK] = list()
             Fn.history(
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK]],  str(disk))
-        except ValueError as e:
+                self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK],  str(disk))
+        except Exception as e:
             logging.error(e)
 
             failed = True
@@ -193,10 +189,10 @@ class Monitor:
                 k["usage"] = str("{0:.2f}".format(
                     100-(float(mounts[line]["pfree"]))))+" %"
                 lst.append(k)
-            if self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] is None:
-                self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] = list()
-            self.db[[DbUtils.MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS]] = lst
-        except ValueError as e:
+            if self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] is None:
+                self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] = list()
+            self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] = lst
+        except Exception as e:
             logging.error(e)
             failed = True
 

@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 __author__ = 'Samir KHERRAZ'
-__copyright__ = '(c) Samir HERRAZ 2018-2018'
-__version__ = '1.1.0'
+__copyright__ = '(c) Samir HERRAZ 2018-2019'
+__version__ = '1.2.0'
 __licence__ = 'GPLv3'
 
 import http.cookies
 import random
 import string
 import logging
-from Settings import ADMIN_PASSWORD, ADMIN_USERNAME, LISTENING_PORT, DEBUG
+from Constants import *
 from Core.Database.DbUtils import DbUtils
 
 
@@ -20,40 +20,47 @@ class Actions():
         k = dict()
         access = False
         try:
-            if data["username"] == ADMIN_USERNAME and data["password"] == ADMIN_PASSWORD:
-                access = True
-            elif data["username"] in self.db[DbUtils.USERS].keys() and self.db[DbUtils.USERS][data["username"]]["password"] == data["password"]:
-                access = True
-            else:
-                access = False
+            access = True
+            access &= data["username"] in self.db[DB_USERS].keys()
+            print(access)
+            access &= self.db[DB_USERS, data["username"], "password" ] == data["password"]
+            print(self.db[DB_USERS, data["username"], "password" ])
+            print(data["password"])
+            print(access)
         except ValueError as e:
             logging.error(e)
             access = False
-        if access == True:
+        if access:
             token = ''.join(random.choice(
                 string.ascii_uppercase + string.digits) for _ in range(16))
-            self.db[DbUtils.USERS][data["username"]]["token"] = token
+            self.db[DB_USERS, data["username"], "token"] = token
             self.db.persist()
             k["TOKEN"] = token
         else:
             k["TOKEN"] = None
         return k
 
-    def user_check(self, path, data, cookies):
+    def user_auth_check(self,path, data ,cookies):
+        return {"AUTHORIZATION": True}
+
+    def user_check(self,cookies):
         token = cookies["TOKEN"].value if "TOKEN" in list(
             cookies.keys()) else None
         username = cookies["USERNAME"].value if "USERNAME" in list(cookies.keys(
         )) else None
 
         if username != None and token != None:
-            if self.db[DbUtils.USERS][username]["token"] == token:
-                return {"AUTHORIZATION": True}
-        return {"AUTHORIZATION": False}
+            if self.db[DB_USERS, username, "token"] == token:
+                return True
+        return False
 
+
+    
+    def user_privilege(self,cookies,privilege):
+        return self.db[DB_USERS, cookies["USERNAME"].value , "privilege", privilege] == True
+        
+        
     def get_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
         if len(path) > 0:
             data = self.db[path[::-1]]
         else:
@@ -61,22 +68,13 @@ class Actions():
         return data
 
     def set_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["users.privilege.edit"]:
-                return {"AUTHORIZATION": False}
         if len(path) > 1:
             self.db[path[::-1]] = data
             self.db.persist()
             
+            
 
     def create_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["users.privilege.edit"]:
-                return {"AUTHORIZATION": False}
         if len(path) == 2:
             cid = self.db.create(path[1], path[0])
             self.db.persist()
@@ -91,11 +89,6 @@ class Actions():
             return {"ID": cid}
 
     def delete_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["users.privilege.edit"]:
-                return {"AUTHORIZATION": False}
         if len(path) == 2:
             self.db.delete(path[1], path[0])
         elif len(path) == 1:
@@ -105,61 +98,41 @@ class Actions():
         return ["success"]
 
     def cleanup_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["users.privilege.edit"]:
-                return {"AUTHORIZATION": False}
         self.db.persist()
         return ["success"]
 
     def move_data(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["users.privilege.edit"]:
-                return {"AUTHORIZATION": False}
         if len(path) == 2:
             self.db.move(path[1], path[0])
             self.db.persist()
             return ["success"]
 
     def find(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
         if len(path) == 1:
             return self.db.find(path[0], data["attribute"], data["value"])
         else:
             return []
 
     def find_path(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
         if len(path) == 1:
             return self.db.find_path(path[0])
         else:
             return []
 
     def find_parent(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
         if len(path) == 1:
             return {"Parent": self.db.find_parent(path[0])}
         else:
             return {"Parent": None}
 
     def find_children(self, path, data, cookies):
-        if not DEBUG:
-            if not self.db[DbUtils.USERS][cookies["USERNAME"].value]["token"] == cookies["TOKEN"].value:
-                return {"AUTHORIZATION": False}
         if len(path) == 1:
             return self.db.find_children(path[0])
         else:
             return []
 
+    def ping(self, path,data,cookies ):
+        return True
     # def user_create(self, path, data, cookies):
     #     if not self.db.get_attr("users", cookies["USERNAME"].value, "users.privilege.manage"):
     #         return {"AUTHORIZATION": False}
@@ -212,7 +185,7 @@ class Actions():
 
     def user_access(self, path, data, cookies):
         try:
-            return {"AUTHORIZATION": self.db[DbUtils.USERS][cookies["USERNAME"].value][path[0]]}
+            return {"AUTHORIZATION": self.user_privilege(cookies,path[0])}
         except Exception as e:
             logging.error(e)
             return {"AUTHORIZATION": False}
