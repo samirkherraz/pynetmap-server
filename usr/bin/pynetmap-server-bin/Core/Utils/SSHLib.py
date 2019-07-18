@@ -11,13 +11,11 @@ import string
 import time
 from threading import Lock, Thread
 from Core.Database.DbUtils import DbUtils
-import logging
 import paramiko
 from Constants import *
-
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
 from .forward import forward_tunnel
-
-paramiko.util.log_to_file("/dev/null")
 
 
 class SSHLib:
@@ -37,8 +35,8 @@ class SSHLib:
                 if line.strip() != "":
                     out += str(line.strip()) + str("\n")
             return str(out).strip()
-        except ValueError as e:
-            logging.error(e)
+        except:
+            pass
 
     def ip_net_in_network(ip, net):
         ipaddr = int(''.join(['%02x' % int(x) for x in ip.split('.')]), 16)
@@ -66,8 +64,7 @@ class SSHLib:
                 if self.ip_net_in_network(ip, network):
                     return key
 
-            except Exception as e:
-                logging.error(e)
+            except:
                 pass
         return None
 
@@ -105,8 +102,8 @@ class SSHLib:
                             password=password, timeout=5)
 
             return ssh
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             return None
 
     def history_append(lst, value):
@@ -156,16 +153,16 @@ class SSHLib:
 
                     
                     return localport
-                except Exception as e:
-                    logging.error(e)
+                except:
+                    pass
 
                    
                     return None
             else:
               
                 return None
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             return None
 
     def close_port(self, port):

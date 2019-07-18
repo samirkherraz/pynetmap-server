@@ -5,23 +5,11 @@ from threading import Semaphore
 from Core.Database.DbUtils import DbUtils
 from Core.Utils import Fn
 from Constants import *
-import logging
-"""
-Module -> ELM{
-    history{
-        memory: [....]
-        cpuUsage: [....]
-        disk: [....]
-    },
-    uptime: 45456646
-    mounts: []
-}
-Server -> zabbix {
-        url : ************,
-        username : *******,
-        password : *******
-}
-"""
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
+
+
+
 
 
 class Monitor:
@@ -32,17 +20,18 @@ class Monitor:
             zabbix.login(self.db[DB_SERVER, "zabbix", "username"],
                          self.db[DB_SERVER, "zabbix", "password"])
             return zabbix
-        except Exception as e:
-            logging.error(e)
+        except:
+            logging.error("UNABLE TO ACCESS ZABBIX API")
             return None
 
     def __init__(self):
         self.db = DbUtils.getInstance()
         zabbix = self.connect()
-        host_list = self.get_host_list(zabbix)
-        host_list.sort()
-        for e in ["Noeud","VM","Container"]:
-            self.db[DB_SCHEMA, e, "Fields", KEY_MONITOR_ZABBIX_ID] = host_list
+        if zabbix is not None:
+            host_list = self.get_host_list(zabbix)
+            host_list.sort()
+            for e in ["Noeud","VM","Container"]:
+                self.db[DB_SCHEMA, e, "Fields", KEY_MONITOR_ZABBIX_ID] = host_list
 
     def get_host_list(self, zabbix):
         return [e["name"]+"::"+e["hostid"] for e in zabbix.host.get({"output": ["hostid", "name", "ip"], "selectInterfaces": ["ip"], })]
@@ -64,7 +53,6 @@ class Monitor:
             }
         })
         if len(status) > 0:
-            logging.info(status)
             return str(status[0]["status"]) == "0"
         else:
             return False
@@ -77,7 +65,6 @@ class Monitor:
         zabbix = self.connect()
         if zabbix == None:
             return None
-        logging.info(self.db[DB_BASE, id, KEY_MONITOR_ZABBIX_ID])
         zabbixid = self.db[DB_BASE, id, KEY_MONITOR_ZABBIX_ID]
         if zabbixid == None:
             ip = self.db[DB_BASE, id, KEY_NET_IP]
@@ -117,8 +104,8 @@ class Monitor:
         try:
             nbcpus = 0
             self.db[DB_MODULE, id, KEY_MONITOR_NB_CPU] = nbcpus
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             failed = True
 
         try:
@@ -132,8 +119,8 @@ class Monitor:
             Fn.history(
                 self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_MEMORY], str(mem))
 
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             failed = True
 
         try:
@@ -144,16 +131,16 @@ class Monitor:
                 self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE] = list()
             Fn.history(
                 self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_CPU_USAGE], str(cpuusage))
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             failed = True
 
         try:
             uptime = self.get_item(data,"system.uptime")
             self.db[DB_MODULE, id, "uptime"] = str(
                 timedelta(seconds=(int(float(uptime)))))
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
 
             failed = True
 
@@ -167,8 +154,8 @@ class Monitor:
                 self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK] = list()
             Fn.history(
                 self.db[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_MONITOR_DISK],  str(disk))
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
 
             failed = True
 
@@ -192,8 +179,8 @@ class Monitor:
             if self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] is None:
                 self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] = list()
             self.db[DB_MODULE, id, KEY_MONITOR_LISTS, KEY_MONITOR_MOUNTS] = lst
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             failed = True
 
         if not failed:

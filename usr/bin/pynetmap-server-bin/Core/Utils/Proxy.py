@@ -3,7 +3,7 @@
 import os
 import sys
 import logging
-logging.basicConfig(filename="/dev/null", level=logging.DEBUG)
+logging.basicConfig(filename="/dev/null")
 
 #from model import Model
 from Core.Database.DbUtils import DbUtils
@@ -44,5 +44,5 @@ class Proxy:
             os.system(cmd)
             sshlib.close_port(localport)
 
-        except Exception as e:
+        except:
             pass

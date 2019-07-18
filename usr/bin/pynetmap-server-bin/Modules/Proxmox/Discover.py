@@ -9,8 +9,10 @@ from Core.Database.DbUtils import DbUtils
 from Core.Utils import Fn
 from Core.Utils.SSHLib import SSHLib
 from Constants import *
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
 
-import logging
+
 class Discover:
 
     def arp_table(self, id):
@@ -27,14 +29,12 @@ class Discover:
                             0].upper())
                         arp[line.split("=")[0].upper()] = str(line.split("=")[
                             1].upper())
-                    except Exception as e:
-                        logging.error(e)
+                    except:
                         pass
-            except Exception as e:
-                logging.error(e)
+            except:
                 pass
         else:
-            logging.error("NO SSH COOO")
+            logging.error("UNABLE TO OPEN PORT FOR SSH")
         return arp
 
     def find(self, vmid, id):
@@ -49,7 +49,7 @@ class Discover:
         self.sshlib = SSHLib()
 
     def process(self, id):
-        logging.info("process "+str(id))
+        logging.info(f'START PROCESSING {self.db[DB_BASE, id,KEY_NAME]}')
         localport = self.sshlib.open_port(id, "8006")
         try:
             if localport != None:
@@ -74,7 +74,7 @@ class Discover:
                     for vm in proxmox.nodes(node['node']).qemu.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
-                        logging.info("DISCOVER :: "+ vm["name"])
+                        logging.info("DISCOVERED QEMU VM : "+ vm["name"])
                         self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
                         self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
                         self.db[DB_BASE, k, KEY_TYPE] =  "VM"
@@ -90,18 +90,16 @@ class Discover:
                                     self.db[DB_BASE, k, KEY_NET_ETH] =  eth
                                     self.db[DB_BASE, k, KEY_NET_MAC] =  mac
                                     self.db[DB_BASE, k, KEY_NET_IP] =  ip
-                                except Exception as e:
-                                    logging.error(e)
+                                except:
                                     pass
 
-                except Exception as e:
-                    logging.error(e)
+                except:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).lxc.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
-
+                        logging.info("DISCOVERED LXC CONTAINER : "+ vm["name"])
                         self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
                         self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
                         self.db[DB_BASE, k, KEY_TYPE] =  "Container"
@@ -118,17 +116,16 @@ class Discover:
                                     self.db[DB_BASE, k, KEY_NET_ETH] =  eth
                                     self.db[DB_BASE, k, KEY_NET_MAC] =  mac
                                     self.db[DB_BASE, k, KEY_NET_IP] =  ip
-                                except Exception as e:
-                                    logging.error(e)
+                                except:
                                     pass
 
-                except Exception as e :
-                    logging.error(e)
+                except :
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).openvz.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
+                        logging.info("DISCOVERED OPENVZ CONTAINER : "+ vm["name"])
                         self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
                         self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
                         self.db[DB_BASE, k, KEY_TYPE] =  "Container"
@@ -142,20 +139,18 @@ class Discover:
                                     self.db[DB_BASE, k, KEY_NET_ETH] =  eth
                                     self.db[DB_BASE, k, KEY_NET_MAC] =  mac
                                     self.db[DB_BASE, k, KEY_NET_IP] =  ip
-                                except Exception as e:
-                                    logging.error(e)
+                                except:
                                     pass
 
-                except Exception as e:
-                    logging.error(e)
+                except:
                     pass
 
             for elm in self.db.find_children(id):
                 if elm not in FOUND:
                     self.db.delete(id, elm)
-        except Exception as e:
-            logging.error(e)
-            logging.info("Unable to access proxmox api")
+        except:
+            pass
+            logging.info("UNABLE TO ACCESS PVE API")
             self.db[DB_MODULE, id,KEY_DISCOVER_PROXMOX_STATUS] =  "No"
 
 

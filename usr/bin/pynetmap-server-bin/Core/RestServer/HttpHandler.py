@@ -4,27 +4,45 @@ import json
 from http.server import BaseHTTPRequestHandler
 from Core.RestServer.Actions import Actions
 from Constants import *
-import logging
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
+
+
+
+
 
 class HttpHandler(BaseHTTPRequestHandler):
 
-    ACTIONS = Actions()
     URLS = {
-        "/data/get": (True,None, ACTIONS.get_data),
-        "/data/set": (True,"edit", ACTIONS.set_data),
-        "/data/create": (True,"edit",ACTIONS.create_data),
-        "/data/delete": (True,"edit",ACTIONS.delete_data),
-        "/data/move": (True,"edit",ACTIONS.move_data),
-        "/data/cleanup": (True,"edit",ACTIONS.cleanup_data),
-        "/data/find/path": (True, None,ACTIONS.find_path),
-        "/data/find/attr": (True,None,ACTIONS.find),
-        "/data/find/parent": (True,None,ACTIONS.find_parent),
-        "/data/find/children": (True,None,ACTIONS.find_children),
-        #"/auth/create": (True,"manage",ACTIONS.user_create),
-        "/auth/login": (False,None,ACTIONS.user_auth),
-        "/auth/access": (True,None,ACTIONS.user_access),
-        "/auth/check": (True,None,ACTIONS.user_auth_check),
-        "/ping": (False,None,ACTIONS.ping),
+
+        "/data/get/"+DB_SERVER: (True,"terminal", "get_data",1),
+        "/data/set/"+DB_SERVER: (True,"terminal", "set_data",1),
+        "/data/rm/"+DB_SERVER: (True,"terminal", "rm_data",1),
+
+        "/data/get/"+DB_USERS: (True,"manage", "get_data",1),
+        "/data/set/"+DB_USERS: (True,"manage", "set_data",1),
+        "/data/rm/"+DB_USERS: (True,"manage", "rm_data",1),
+
+        "/data/get": (True,None, "get_data",0),
+        "/data/set": (True,"edit", "set_data",0),
+        "/data/rm": (True,"edit", "rm_data",0),
+        
+        "/data/create": (True,"edit", "create_data",0),
+        "/data/delete": (True,"edit", "delete_data",0),
+        "/data/move": (True,"edit", "move_data",0),
+        
+        "/data/cleanup": (True,"edit", "cleanup_data",0),
+        
+        "/data/find/path": (True, None, "find_path",0),
+        "/data/find/attr": (True,None ,"find",0),
+        "/data/find/parent": (True,None,"find_parent",0),
+        "/data/find/children": (True,None,"find_children",0),
+        
+        "/auth/access": (True,None,"user_access",0),
+        "/auth/check": (True,None,"user_auth_check",0),
+        "/auth/login": (False,None,"user_auth",0),
+        
+        "/ping": (False,None,"ping",0),
     }
 
     def read_data(self):
@@ -32,8 +50,8 @@ class HttpHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length).decode())
             return json.loads(post_data)
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             return dict()
 
     def read_cookies(self):
@@ -43,24 +61,27 @@ class HttpHandler(BaseHTTPRequestHandler):
         else:
             return dict()
 
-    def send_headers(self):
-        self.send_response(200)
+    def send_headers(self, status=200):
+        self.send_response(status)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
 
     def success(self, data=None):
+        self.send_headers()
         response = dict()
         response["status"] = "OK"
         if data != None:
             response["content"] = data
         self.wfile.write(json.dumps(response).encode())
 
-    def fail(self, data=None):
+    def fail(self, data=None, status=403):
+        self.send_headers(status)
         response = dict()
         response["status"] = "NOTOK"
         if data != None:
             response["content"] = data
         self.wfile.write(json.dumps(response).encode())
+
 
     def do_GET(self):
         if DEBUG:
@@ -71,25 +92,35 @@ class HttpHandler(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
-        self.send_headers()
 
         data = self.read_data()
         cookies = self.read_cookies()
 
         for k in list(HttpHandler.URLS.keys()):
             if self.path.startswith(k):
-                args = [x for x in k.split("/") if x]
-                npaths = [x for x in self.path.split(
-                    "/")[::-1] if x and x not in args]
-                (login, privilege, fn) = HttpHandler.URLS[k]
-                if login and not HttpHandler.ACTIONS.user_check(cookies):
-                    self.fail({"AUTHORIZATION": False})
-                    return
-                if privilege is not None and HttpHandler.ACTIONS.user_privilege(cookies,privilege):
-                    self.fail({"AUTHORIZATION": False})
-                    return  
-                self.success(fn(npaths, data, cookies))
+                (login, privilege, fn, revpath) = HttpHandler.URLS[k]
+                args = [x for x in k.split("/") if x][::-1]
+                npaths = []
+                for i in range(revpath):
+                    npaths.append(args[i])
+                for x in self.path.split("/"):
+                    if x and x not in args:
+                        npaths.append(x)
+                act = Actions(npaths, data, cookies)
+                if not DEBUG:
+                    if login and not act.user_check():
+                        self.fail({"AUTHORIZATION": False})
+                        return
+                    if privilege is not None and not act.user_privilege(privilege):
+                        self.fail({"AUTHORIZATION": False})
+                        return  
+                try:
+                    method = getattr(act, fn)
+                    self.success(method())
+                except:
+                    self.fail("Serveur Error")
                 return
+            
 
         self.fail("operation not supported")
         return

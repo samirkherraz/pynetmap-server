@@ -30,13 +30,17 @@ import getpass
 import os
 import socket
 import select
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
+
+
+
 
 try:
     import SocketServer
 except ImportError:
     import socketserver as SocketServer
 
-import logging
 import sys
 from optparse import OptionParser
 
@@ -59,8 +63,8 @@ class Handler(SocketServer.BaseRequestHandler):
                 (self.chain_host, self.chain_port),
                 self.request.getpeername(),
             )
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             return
 
         if chan is None:
@@ -79,15 +83,15 @@ class Handler(SocketServer.BaseRequestHandler):
                     if len(data) == 0:
                         break
                     self.request.send(data)
-            except Exception as e:
-                logging.error(e)
+            except:
+                pass
                 break
         try:
             peername = self.request.getpeername()
             chan.close()
             self.request.close()
-        except Exception as e:
-            logging.error(e)
+        except:
+            pass
             return
 
 

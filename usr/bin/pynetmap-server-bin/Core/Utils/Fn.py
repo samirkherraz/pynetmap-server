@@ -2,9 +2,11 @@
 import time
 import string
 import random
-import os 
+import os
 from Core.Database.DbUtils import DbUtils
 from Constants import *
+import logging
+
 
 def history(lst, elm):
     if type(lst) != list:
@@ -12,10 +14,10 @@ def history(lst, elm):
 
     lst.append({"value": elm, "date": time.time()})
 
+
 def renew():
     token = ''.join(random.choice(
-                string.ascii_uppercase + string.digits) for _ in range(16))
-    DbUtils.getInstance()[DB_SERVER, "ssh","password"] = token
+        string.ascii_uppercase + string.digits) for _ in range(16))
+    DbUtils.getInstance()[DB_SERVER, "ssh", "password"] = token
     os.system('echo "pynetmap:'+token+'" | chpasswd')
-
 

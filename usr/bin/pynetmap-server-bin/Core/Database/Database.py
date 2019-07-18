@@ -7,10 +7,14 @@ __licence__ = 'GPLv3'
 import time
 import random
 import string
-import logging
 from Core.Database.Table import Table
+from Constants import *
+from threading import Thread, Lock, Event
+from Core.Utils.Logging import getLogger
+logging = getLogger(__package__)
 
-from threading import Lock
+
+
 
 
 class Database:
@@ -20,27 +24,26 @@ class Database:
         self._specials = []
         self._lock = Lock()
 
-    def register(self, name, special, persist):
+    def register(self, name, special, persist, secret):
         if special == True:
             self._specials.append(name)
-        self._tables[name] = Table(name, persist)
-        logging.getLogger(__package__).info(
-            "Register Table %s as %s", name, persist)
-
+        self._tables[name] = Table(name, persist, secret)
+        logging.info(f'REGISTER TABLE {name} [ PERSISTANCE={persist} , ENCRYPTION={secret} ]')
     def reindex(self):
-        valides = self.rebuild_index()
-        for name in self._tables:
-            if name not in self._specials:
-                self._tables[name].cleanup(valides)
+        with self._lock:
+            valides = self._rebuild_index()
+            for name in self._tables:
+                if name not in self._specials:
+                    self._tables[name].cleanup(valides)
 
-    def rebuild_index(self, lst=None):
+    def _rebuild_index(self, lst=None):
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
 
         out = []
         for key in list(lst.keys()):
             out.append(key)
-            out = out + self.rebuild_index(lst[key])
+            out = out + self._rebuild_index(lst[key])
 
         return out
 
@@ -57,41 +60,56 @@ class Database:
         return self._tables[t][others]
 
     def __setitem__(self, name, value):
-        with self._lock:
-            if type(name) is str:
-                t = name
-            elif type(name) is tuple:
-                t, *others = name
-            elif type(name) is list:
-                t = name.pop(0)
-                others = name
-            self._tables[t][others] = value
+        if type(name) is str:
+            t = name
+            others = []
+        elif type(name) is tuple:
+            t, *others = name
+        elif type(name) is list:
+            t = name.pop(0)
+            others = name
 
-    def genid(self):
+        self._tables[t][others] = value
+
+    def __delitem__(self, name):
+        if type(name) is str:
+            t = name
+            del self._tables[t]
+            return
+        elif type(name) is tuple:
+            t, *others = name
+        elif type(name) is list:
+            t = name.pop(0)
+            others = name
+        del self._tables[t][others]
+
+    def _gen_id(self):
         return "EL_"+str(str(time.time()))+''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
 
     def create(self, parent_id=None, newid=None, lst=None):
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
         if newid == None:
-            newid = self.genid()
+            newid = self._gen_id()
         if parent_id == None:
-            self._tables["structure"][newid] = {}
-            self.reindex()
+            with self._lock:
+                self._tables[DB_STRUCT][newid] = {}
+                self.reindex()
             return newid
         else:
             for key in list(lst.keys()):
                 if key == parent_id:
-                    lst[key][newid] = {}
-                    self.reindex()
-                    return newid
+                    with self._lock:
+                        lst[key][newid] = {}
+                        self.reindex()
+                        return newid
                 elif self.create(parent_id, newid, lst[key]):
                     return newid
         return None
 
     def move(self, id, parentid, elm=None, lst=None):
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
             path = self.find_path(id)
             elm = lst
             par = None
@@ -104,9 +122,10 @@ class Database:
 
         for key in list(lst.keys()):
             if key == parentid:
-                lst[key][id] = elm
-                self.reindex()
-                return True
+                with self._lock:
+                    lst[key][id] = elm
+                    self.reindex()
+                    return True
             elif self.move(id, parentid, elm, lst[key]):
                 return True
 
@@ -114,18 +133,19 @@ class Database:
 
     def delete(self, parent_id, newid, lst=None):
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
         if parent_id == None:
-            self._tables["structure"].delete(newid)
+            self._tables[DB_STRUCT].delete(newid)
             self.reindex()
             return True
         else:
             for key in list(lst.keys()):
                 if key == parent_id:
-                    del lst[key][newid]
-                    self._tables["structure"].save()
-                    self.reindex()
-                    return True
+                    with self._lock:
+                        del lst[key][newid]
+                        self._tables[DB_STRUCT].save()
+                        self.reindex()
+                        return True
                 elif self.delete(parent_id, newid, lst[key]):
                     return True
         return False
@@ -135,16 +155,22 @@ class Database:
         for key in list(self._tables[table].keys()):
             if attr != None:
                 try:
-                    if str(self._tables[table][key][attr]).upper() == str(value).upper():
+                    if str(value).upper() in str(self._tables[table][key][attr]).upper():
                         out.append(key)
-                except Exception as e:
-                    logging.error(e)
+                except:
+                    pass
+            else:
+                try:
+                    for e in self._tables[table][key]:
+                        if str(value).upper() in str(self._tables[table][key][e]).upper():
+                            out.append(key)
+                except:
                     pass
         return out
 
     def find_children(self, id, lst=None):
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
 
         for key in list(lst.keys()):
             if key == id:
@@ -160,14 +186,13 @@ class Database:
         try:
             path = self.find_path(id)
             return path[len(path)-2]
-        except Exception as e:
-            logging.error(e)
+        except:
             return None
 
     def find_path(self, id, lst=None):
         out = []
         if lst == None:
-            lst = self._tables["structure"]
+            lst = self._tables[DB_STRUCT]
 
         for key in list(lst.keys()):
             key = str(key)
@@ -183,13 +208,18 @@ class Database:
         return out
 
     def read(self):
-        for name in self._tables:
-            self._tables[name].read()
+        with self._lock:
+            for name in self._tables:
+                self._tables[name].read()
 
     def write(self):
-        for name in self._tables:
-            self._tables[name].write()
+        with self._lock:
+            for name in self._tables:
+                self._tables[name].write()
 
-    def persist(self):
-        self.write()
-
+    def persist(self, join=False):
+        ts = Thread(target=self.write)
+        ts.daemon = True
+        ts.start()
+        if join:
+            ts.join()

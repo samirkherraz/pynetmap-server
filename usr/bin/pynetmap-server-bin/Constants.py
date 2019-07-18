@@ -54,5 +54,5 @@ KEY_TUNNEL_USER = "tunnel.user"
 KEY_TUNNEL_PASSWORD = "tunnel.password"
 KEY_TUNNEL_PORT = "tunnel.port"
 KEY_TUNNEL_NETWORK = "tunnel.network"
-
-DEBUG = True
+CRYPTO_KEY_ENCRYPTION = "ZnyBnKI7N/ETSqSq+HgnIZ4f4TvrHMYV"
+DEBUG = False
