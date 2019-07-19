@@ -1,4 +1,5 @@
 import os
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EXIT_ERROR_LOCK = 1
@@ -56,3 +57,4 @@ KEY_TUNNEL_PORT = "tunnel.port"
 KEY_TUNNEL_NETWORK = "tunnel.network"
 CRYPTO_KEY_ENCRYPTION = "ZnyBnKI7N/ETSqSq+HgnIZ4f4TvrHMYV"
 DEBUG = False
+LOGGING = True

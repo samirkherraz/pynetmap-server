@@ -12,7 +12,6 @@ from Constants import *
 from Core.Database.DbUtils import DbUtils
 from Core.Utils import Fn
 from Core.Utils.Logging import getLogger
-logging = getLogger(__package__)
 
 
 class Collector:
@@ -24,6 +23,8 @@ class Collector:
         self._stop.set()
 
     def set_status(self, id, status=None):
+        logging = getLogger(__package__, DbUtils.getInstance()[
+                            DB_BASE, id, KEY_NAME])
 
         if DbUtils.getInstance()[DB_MODULE, id, KEY_MONITOR_HISTORY, KEY_STATUS] is None:
             DbUtils.getInstance()[DB_MODULE, id,
@@ -46,9 +47,10 @@ class Collector:
                 'stopped' if status == None else status)
         DbUtils.getInstance()[DB_MODULE, id, KEY_LAST_UPDATE] = time.time()
 
-        logging.info(f'STATUS {DbUtils.getInstance()[DB_BASE, id, KEY_NAME]} SET TO {status}')
+        logging.info(f'STATUS SET TO {status}')
 
     def scan(self):
+        logging = getLogger(__package__)
         DbUtils.getInstance()[DB_CONFIG, KEY_MONITOR, "None"] = 1
         DbUtils.getInstance()[DB_CONFIG, KEY_HYPERVISOR, "None"] = 1
         path = BASE_DIR+"/Modules"
@@ -62,20 +64,24 @@ class Collector:
                     Collector.MONITOR[name] = Monitor()
                     DbUtils.getInstance()[DB_CONFIG, KEY_MONITOR, name] = 1
                     logging.info(f'MODULE MONITOR {name} WAS FOUND')
-                except:
-                    pass
+                except Exception as e:
+                    logging.debug(e)
+                    logging.warning(f'MODULE MONITOR {name} WAS NOT FOUND')
                 try:
                     Discover = M.Discover
                     Collector.DISCOVER[name] = Discover()
                     DbUtils.getInstance()[DB_CONFIG, KEY_HYPERVISOR, name] = 1
                     logging.info(f'MODULE DISCOVER {name} WAS FOUND')
-                except:
-                    pass
+                except Exception as e:
+                    logging.debug(e)
+                    logging.warning(f'MODULE DISCOVER {name} WAS NOT FOUND')
 
     def discover(self, id):
         hypervisor = DbUtils.getInstance()[DB_BASE, id, KEY_HYPERVISOR]
         if hypervisor != None and hypervisor in Collector.DISCOVER.keys():
-            logging.info(f'DISCOVER BY {hypervisor} {DbUtils.getInstance()[DB_BASE, id, KEY_NAME]}')
+            logging = getLogger(__package__, DbUtils.getInstance()[
+                                DB_BASE, id, KEY_NAME])
+            logging.info(f'DISCOVER BY {hypervisor}')
             Collector.DISCOVER[hypervisor].process(id)
 
     def monitor(self, id, parent=None):
@@ -83,58 +89,47 @@ class Collector:
         if method == None:
             method = "None"
             DbUtils.getInstance()[DB_BASE, id, KEY_MONITOR] = method
+            DbUtils.getInstance().persist()
 
         status = UNKNOWN_STATUS
         if method in Collector.MONITOR.keys():
-            logging.info(f'MONITOR BY {method} {DbUtils.getInstance()[DB_BASE, id, KEY_NAME]}')
-            status = Collector.MONITOR[method].process(id)
+            logging = getLogger(__package__, DbUtils.getInstance()[
+                                DB_BASE, id, KEY_NAME])
+            logging.info(f'MONITOR BY {method}')
             DbUtils.getInstance()[DB_MODULE, id, KEY_MONITOR] = method
+            status = Collector.MONITOR[method].process(id)
 
         self.set_status(id, status)
 
     def process(self, id, parent=None):
-        if parent == None:
-            self._semaphore.acquire()
         self.discover(id)
         self.monitor(id, parent)
-
         for key in DbUtils.getInstance().find_children(id):
             self.process(key, id)
         if parent == None:
             self._semaphore.release()
+            logging = getLogger(__package__)
+            logging.info(f'LOCK RELEASE , REMAINING {self._semaphore._value }')
 
     def __init__(self):
-        self._semaphore = Semaphore(4)
+        self._semaphore = Semaphore(8)
         self._threads = dict()
         self._stop = Event()
         self.scan()
 
-    def clear(self):
-        for t in list(self._threads.keys()):
-            if not self._threads[t].isAlive():
-                del self._threads[t]
-                # self._semaphore.release()
-
     def run(self):
         while True:
-            DbUtils.getInstance().persist()
             all = DbUtils.getInstance().find(DB_BASE, KEY_TYPE, "Noeud")
             for id in all:
-                self.clear()
-                thread = None
+                self._semaphore.acquire()
+                logging = getLogger(__package__)
+                logging.info(
+                    f'LOCK ACQUIRED , REMAINING {self._semaphore._value }')
                 thread = Thread(target=self.process, args=(id,))
-                self._threads[id] = thread
                 thread.daemon = True
-                # self._semaphore.acquire()
                 thread.start()
 
             self._stop.wait(
                 int(DbUtils.getInstance()[DB_SERVER, "trigger", "update_interval"]))
             if self._stop.isSet():
                 break
-
-
-def Test():
-    c = Collector()
-    c.run()
-    c.stop()

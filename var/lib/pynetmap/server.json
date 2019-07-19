@@ -1,4 +1,19 @@
 {
-    "server.ssh.password": "5WGZ3JG42M6115OP3J5QDMK8I49OM2WX",
-    "server.ssh.user": "pynetmap"
+    "ssh": {
+        "user": "pynetmap",
+        "password": "5WGZ3JG42M6115OP3J5QDMK8I49OM2WX"
+    },
+    "server": {
+        "port": "9999",
+        "backup": "/var/lib/pynetmap/backups/"
+    },
+    "zabbix": {
+        "url": "http://local.domain/zabbix/",
+        "username": "username",
+        "password": "password"
+    },
+    "trigger": {
+        "history_keep": 300,
+        "update_interval": 360
+    }
 }

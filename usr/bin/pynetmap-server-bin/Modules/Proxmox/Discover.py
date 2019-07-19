@@ -5,22 +5,24 @@ __version__ = '1.2.0'
 __licence__ = 'GPLv3'
 
 from proxmoxer import ProxmoxAPI
-from Core.Database.DbUtils import DbUtils
-from Core.Utils import Fn
-from Core.Utils.SSHLib import SSHLib
+
 from Constants import *
+from Core.Database.DbUtils import DbUtils, call_persist_after
+from Core.Utils import Fn
 from Core.Utils.Logging import getLogger
-logging = getLogger(__package__)
+from Core.Utils.SSHLib import SSHLib
 
 
 class Discover:
 
     def arp_table(self, id):
+        logging = getLogger(__package__, DbUtils.getInstance()[
+                            DB_BASE, id, KEY_NAME])
         arp = dict()
         ssh = self.sshlib.open_ssh(id)
         if ssh != None:
             table = self.sshlib.ssh_exec_read(ssh,
-                                             """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
+                                              """for i in $(route -n | awk 'NR > 2 && !seen[$1$2]++  {print $8}');do arp-scan -I $i -l --quiet | head -n -3 | tail -n +3 ; done | awk '!seen[$1$2]++ { print $1"="$2;}'""")
             ssh.close()
             try:
                 for line in table.split("\n"):
@@ -38,47 +40,55 @@ class Discover:
         return arp
 
     def find(self, vmid, id):
-        for k in self.db.find_children(id):
-            if self.db[DB_BASE, k,KEY_DISCOVER_PROXMOX_ID] == vmid:
+        for k in DbUtils.getInstance().find_children(id):
+            if DbUtils.getInstance()[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] == vmid:
                 return k
-        newid = self.db.create(id)
+        newid = DbUtils.getInstance().create(id)
         return newid
 
     def __init__(self):
-        self.db = DbUtils.getInstance()
         self.sshlib = SSHLib()
 
+    @call_persist_after
     def process(self, id):
-        logging.info(f'START PROCESSING {self.db[DB_BASE, id,KEY_NAME]}')
+        logging = getLogger(__package__, DbUtils.getInstance()[
+                            DB_BASE, id, KEY_NAME])
+        logging.info(f'START PROCESSING')
         localport = self.sshlib.open_port(id, "8006")
         try:
             if localport != None:
                 ip = "localhost"
                 port = str(localport)
             else:
-                ip = str(self.db[DB_BASE, id,KEY_NET_IP]).strip()
+                ip = str(DbUtils.getInstance()[
+                         DB_BASE, id, KEY_NET_IP]).strip()
                 port = "8006"
 
             proxmox = ProxmoxAPI(ip, port=port,
-                                 user=str(self.db[DB_BASE, id,KEY_SSH_USER]).strip()+'@pam',
-                                 password=str(self.db[DB_BASE, id,KEY_SSH_PASSWORD]).strip(),
+                                 user=str(DbUtils.getInstance()[
+                                          DB_BASE, id, KEY_SSH_USER]).strip()+'@pam',
+                                 password=str(DbUtils.getInstance()[
+                                              DB_BASE, id, KEY_SSH_PASSWORD]).strip(),
                                  verify_ssl=False)
 
-            self.db[DB_MODULE, id,KEY_DISCOVER_PROXMOX_STATUS] =  "Yes"
+            DbUtils.getInstance()[DB_MODULE, id,
+                                  KEY_DISCOVER_PROXMOX_STATUS] = "Yes"
             logging.info("PVE API ACCES OK")
             FOUND = list()
             for node in proxmox.nodes.get():
-                self.db[DB_BASE, id, KEY_NAME] = node['node']
+                DbUtils.getInstance()[DB_BASE, id, KEY_NAME] = node['node']
                 arp = self.arp_table(id)
                 try:
                     for vm in proxmox.nodes(node['node']).qemu.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
-                        logging.info("DISCOVERED QEMU VM : "+ vm["name"])
-                        self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
-                        self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
-                        self.db[DB_BASE, k, KEY_TYPE] =  "VM"
-                        
+                        logging.info("DISCOVERED QEMU VM : " + vm["name"])
+                        DbUtils.getInstance()[DB_BASE, k,
+                                              KEY_NAME] = vm["name"]
+                        DbUtils.getInstance()[
+                            DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] = vm["vmid"]
+                        DbUtils.getInstance()[DB_BASE, k, KEY_TYPE] = "VM"
+
                         for i in proxmox.nodes(node['node']).qemu(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
@@ -87,9 +97,12 @@ class Discover:
                                         vm["vmid"]).config.get()[i].split("=")[1].split(",")[0]
                                     ip = arp[mac]
 
-                                    self.db[DB_BASE, k, KEY_NET_ETH] =  eth
-                                    self.db[DB_BASE, k, KEY_NET_MAC] =  mac
-                                    self.db[DB_BASE, k, KEY_NET_IP] =  ip
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_ETH] = eth
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_MAC] = mac
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_IP] = ip
                                 except:
                                     pass
 
@@ -99,10 +112,14 @@ class Discover:
                     for vm in proxmox.nodes(node['node']).lxc.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
-                        logging.info("DISCOVERED LXC CONTAINER : "+ vm["name"])
-                        self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
-                        self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
-                        self.db[DB_BASE, k, KEY_TYPE] =  "Container"
+                        logging.info(
+                            "DISCOVERED LXC CONTAINER : " + vm["name"])
+                        DbUtils.getInstance()[DB_BASE, k,
+                                              KEY_NAME] = vm["name"]
+                        DbUtils.getInstance()[
+                            DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] = vm["vmid"]
+                        DbUtils.getInstance()[DB_BASE, k,
+                                              KEY_TYPE] = "Container"
 
                         for i in proxmox.nodes(node['node']).lxc(vm["vmid"]).config.get():
                             if 'net' in i:
@@ -112,23 +129,30 @@ class Discover:
                                     mac = proxmox.nodes(node['node']).lxc(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
                                     ip = arp[mac]
-   
-                                    self.db[DB_BASE, k, KEY_NET_ETH] =  eth
-                                    self.db[DB_BASE, k, KEY_NET_MAC] =  mac
-                                    self.db[DB_BASE, k, KEY_NET_IP] =  ip
+
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_ETH] = eth
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_MAC] = mac
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_IP] = ip
                                 except:
                                     pass
 
-                except :
+                except:
                     pass
                 try:
                     for vm in proxmox.nodes(node['node']).openvz.get():
                         k = self.find(vm["vmid"], id)
                         FOUND.append(k)
-                        logging.info("DISCOVERED OPENVZ CONTAINER : "+ vm["name"])
-                        self.db[DB_BASE, k, KEY_NAME] =  vm["name"]
-                        self.db[DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] =  vm["vmid"]
-                        self.db[DB_BASE, k, KEY_TYPE] =  "Container"
+                        logging.info(
+                            "DISCOVERED OPENVZ CONTAINER : " + vm["name"])
+                        DbUtils.getInstance()[DB_BASE, k,
+                                              KEY_NAME] = vm["name"]
+                        DbUtils.getInstance()[
+                            DB_BASE, k, KEY_DISCOVER_PROXMOX_ID] = vm["vmid"]
+                        DbUtils.getInstance()[DB_BASE, k,
+                                              KEY_TYPE] = "Container"
                         for i in proxmox.nodes(node['node']).openvz(vm["vmid"]).config.get():
                             if 'net' in i:
                                 try:
@@ -136,23 +160,26 @@ class Discover:
                                     mac = proxmox.nodes(node['node']).openvz(
                                         vm["vmid"]).config.get()[i].split(",")[3].split("=")[1]
                                     ip = arp[mac]
-                                    self.db[DB_BASE, k, KEY_NET_ETH] =  eth
-                                    self.db[DB_BASE, k, KEY_NET_MAC] =  mac
-                                    self.db[DB_BASE, k, KEY_NET_IP] =  ip
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_ETH] = eth
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_MAC] = mac
+                                    DbUtils.getInstance()[
+                                        DB_BASE, k, KEY_NET_IP] = ip
                                 except:
                                     pass
 
                 except:
                     pass
 
-            for elm in self.db.find_children(id):
+            for elm in DbUtils.getInstance().find_children(id):
                 if elm not in FOUND:
-                    self.db.delete(id, elm)
+                    DbUtils.getInstance().delete(id, elm)
         except:
             pass
-            logging.info("UNABLE TO ACCESS PVE API")
-            self.db[DB_MODULE, id,KEY_DISCOVER_PROXMOX_STATUS] =  "No"
-
+            logging.warning(f'UNABLE TO ACCESS PVE')
+            DbUtils.getInstance()[DB_MODULE, id,
+                                  KEY_DISCOVER_PROXMOX_STATUS] = "No"
 
         if localport != None:
             self.sshlib.close_port(localport)

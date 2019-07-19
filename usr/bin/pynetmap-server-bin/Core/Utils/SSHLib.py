@@ -10,12 +10,16 @@ import socket
 import string
 import time
 from threading import Lock, Thread
-from Core.Database.DbUtils import DbUtils
+
 import paramiko
+
 from Constants import *
+from Core.Database.DbUtils import DbUtils
 from Core.Utils.Logging import getLogger
-logging = getLogger(__package__)
+
 from .forward import forward_tunnel
+
+logging = getLogger(__package__)
 
 
 class SSHLib:
@@ -60,7 +64,8 @@ class SSHLib:
 
         for key in self.db.get_children(path[0]):
             try:
-                network = str(self.db[DB_BASE, key, KEY_TUNNEL_NETWORK]).strip()
+                network = str(
+                    self.db[DB_BASE, key, KEY_TUNNEL_NETWORK]).strip()
                 if self.ip_net_in_network(ip, network):
                     return key
 
@@ -82,9 +87,12 @@ class SSHLib:
                 tip = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_IP]).strip()
                 tport = self.db[DB_BASE, tunnel, KEY_TUNNEL_PORT]
                 tuser = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_USER]).strip()
-                tpass = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_PASSWORD]).strip()
+                tpass = str(self.db[DB_BASE, tunnel,
+                                    KEY_TUNNEL_PASSWORD]).strip()
+                tpass = tpass.replace("!", "\\!")
+                tpass = tpass.replace("$", "\\$")
                 source = "sshpass -p"
-                source += tpass.replace("!", "\\!")
+                source += tpass
                 source += " ssh -p "
                 source += ("22" if tport == None or tport ==
                            "" else str(tport))
@@ -103,7 +111,6 @@ class SSHLib:
 
             return ssh
         except:
-            pass
             return None
 
     def history_append(lst, value):
@@ -135,7 +142,8 @@ class SSHLib:
                 tip = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_IP]).strip()
                 tport = self.db[DB_BASE, tunnel, KEY_TUNNEL_PORT]
                 tuser = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_USER]).strip()
-                tpass = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_PASSWORD]).strip()
+                tpass = str(self.db[DB_BASE, tunnel,
+                                    KEY_TUNNEL_PASSWORD]).strip()
                 try:
 
                     self.ports[localport +
@@ -151,18 +159,15 @@ class SSHLib:
                     self.ports[localport+"TH"].daemon = True
                     self.ports[localport+"TH"].start()
 
-                    
                     return localport
                 except:
                     pass
 
-                   
                     return None
             else:
-              
+
                 return None
         except:
-            pass
             return None
 
     def close_port(self, port):
@@ -172,8 +177,6 @@ class SSHLib:
             del self.ports[str(port)]
             del self.ports[str(port)+"TH"]
             del self.ports[str(port)+"TR"]
-      
 
     ip_net_in_network = staticmethod(ip_net_in_network)
     ssh_exec_read = staticmethod(ssh_exec_read)
-  

@@ -1,26 +1,15 @@
 {
     "Noeud": {
         "Fields": {
-            "base.ssh.password": "SHORT",
-            "base.name": "SHORT",
-            "base.type": [
-                "Proxmox",
-                "Physical",
-                "OpenStack"
-            ],
-            "base.monitor": [
-                "Yes",
-                "No"
-            ],
-            "base.description": "LONG",
-            "base.os": [
-                "Linux",
-                "FreeBSD",
-                "Windows"
-            ],
-            "base.ssh.user": "SHORT",
-            "base.ssh.port": "SHORT",
-            "base.net.ip": "SHORT"
+            "ssh.password": "SHORT",
+            "name": "SHORT",
+            "hypervisor": ["Proxmox", "None"],
+            "description": "LONG",
+            "os": ["Linux", "FreeBSD", "Windows"],
+            "ssh.user": "SHORT",
+            "ssh.port": "SHORT",
+            "net.ip": "SHORT",
+            "monitor": ["Zabbix", "None"]
         },
         "Parents": "Serveur",
         "Build": "MANUAL",
@@ -30,7 +19,7 @@
         "Fields": {
             "Domains": "LONG",
             "Site": "SHORT",
-            "base.name": "SHORT"
+            "name": "SHORT"
         },
         "Parents": null,
         "Build": "MANUAL",
@@ -38,20 +27,13 @@
     },
     "Container": {
         "Fields": {
-            "base.ssh.password": "SHORT",
-            "base.description": "LONG",
-            "base.net.ip": "SHORT",
-            "base.ssh.user": "SHORT",
-            "base.ssh.port": "SHORT",
-            "base.os": [
-                "Linux",
-                "FreeBSD",
-                "Windows"
-            ],
-            "base.monitor": [
-                "Yes",
-                "No"
-            ]
+            "ssh.password": "SHORT",
+            "description": "LONG",
+            "os": ["Linux", "FreeBSD", "Windows"],
+            "ssh.user": "SHORT",
+            "ssh.port": "SHORT",
+            "net.ip": "SHORT",
+            "monitor": ["Zabbix", "None"]
         },
         "Parents": "Noeud",
         "Build": "AUTO",
@@ -59,20 +41,13 @@
     },
     "VM": {
         "Fields": {
-            "base.ssh.password": "SHORT",
-            "base.description": "LONG",
-            "base.net.ip": "SHORT",
-            "base.ssh.user": "SHORT",
-            "base.ssh.port": "SHORT",
-            "base.os": [
-                "Linux",
-                "FreeBSD",
-                "Windows"
-            ],
-            "base.monitor": [
-                "Yes",
-                "No"
-            ]
+            "ssh.password": "SHORT",
+            "description": "LONG",
+            "os": ["Linux", "FreeBSD", "Windows"],
+            "ssh.user": "SHORT",
+            "ssh.port": "SHORT",
+            "net.ip": "SHORT",
+            "monitor": ["Zabbix", "None"]
         },
         "Parents": "Noeud",
         "Build": "AUTO",
@@ -80,13 +55,13 @@
     },
     "Serveur": {
         "Fields": {
-            "base.tunnel.ip": "SHORT",
-            "base.tunnel.network": "SHORT",
-            "base.description": "LONG",
-            "base.tunnel.user": "SHORT",
-            "base.tunnel.password": "SHORT",
-            "base.tunnel.port": "SHORT",
-            "base.name": "SHORT"
+            "tunnel.ip": "SHORT",
+            "tunnel.network": "SHORT",
+            "description": "LONG",
+            "tunnel.user": "SHORT",
+            "tunnel.password": "SHORT",
+            "tunnel.port": "SHORT",
+            "name": "SHORT"
         },
         "Parents": "Infrastructures",
         "Build": "MANUAL",

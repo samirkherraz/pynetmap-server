@@ -9,12 +9,10 @@ import random
 import string
 
 from Constants import *
-from Core.Database.DbUtils import DbUtils
+from Core.Database.DbUtils import DbUtils, call_persist_after
 from Core.Utils.Logging import getLogger
+
 logging = getLogger(__package__)
-
-
-
 
 
 class Actions():
@@ -23,25 +21,29 @@ class Actions():
         self.data = data
         self.cookies = cookies
 
+    @call_persist_after
     def user_auth(self):
         k = dict()
         access = False
         try:
-            access = self.data["username"] in DbUtils.getInstance()[DB_USERS].keys()
-            access = access and DbUtils.getInstance()[DB_USERS, self.data["username"], "password" ] == self.data["password"]
+            access = self.data["username"] in DbUtils.getInstance()[
+                DB_USERS].keys()
+            access = access and DbUtils.getInstance(
+            )[DB_USERS, self.data["username"], "password"] == self.data["password"]
         except:
             access = False
         if access:
             token = ''.join(random.choice(
                 string.ascii_uppercase + string.digits) for _ in range(16))
-            DbUtils.getInstance()[DB_USERS, self.data["username"], "token"] = token
+            DbUtils.getInstance()[
+                DB_USERS, self.data["username"], "token"] = token
             k["TOKEN"] = token
         else:
             k["TOKEN"] = None
         return k
 
     def user_auth_check(self):
-        return {"AUTHORIZATION": True}
+        return {"AUTHORIZATION": self.user_check()}
 
     def user_check(self):
         token = self.cookies["TOKEN"].value if "TOKEN" in list(
@@ -54,11 +56,9 @@ class Actions():
                 return True
         return False
 
-     
     def user_privilege(self, privilege):
-        return DbUtils.getInstance()[DB_USERS, self.cookies["USERNAME"].value , "privilege", privilege] == True
-        
-        
+        return DbUtils.getInstance()[DB_USERS, self.cookies["USERNAME"].value, "privilege", privilege] == True
+
     def get_data(self):
         if len(self.path) > 0:
             data = DbUtils.getInstance()[self.path]
@@ -67,50 +67,47 @@ class Actions():
             data = dict()
         return data
 
+    @call_persist_after
     def set_data(self):
         if len(self.path) > 1:
             DbUtils.getInstance()[self.path] = self.data
-            DbUtils.getInstance().persist()
-            
-            
 
+    @call_persist_after
     def create_data(self):
         if len(self.path) == 2:
             cid = DbUtils.getInstance().create(self.path[0], self.path[1])
-            DbUtils.getInstance().persist()
             return {"ID": cid}
         elif len(self.path) == 1:
             cid = DbUtils.getInstance().create(self.path[0])
-            DbUtils.getInstance().persist()
             return {"ID": cid}
         else:
             cid = DbUtils.getInstance().create()
-            DbUtils.getInstance().persist()
             return {"ID": cid}
 
+    @call_persist_after
     def delete_data(self):
         if len(self.path) == 2:
             DbUtils.getInstance().delete(self.path[0], self.path[1])
         elif len(self.path) == 1:
             DbUtils.getInstance().delete(None, self.path[0])
-
-        DbUtils.getInstance().persist()
         return ["success"]
 
+    @call_persist_after
     def rm_data(self):
         del DbUtils.getInstance()[self.path]
-        DbUtils.getInstance().persist()
+
         return ["success"]
 
+    @call_persist_after
     def cleanup_data(self):
         DbUtils.getInstance().cleanup()
-        DbUtils.getInstance().persist()
+
         return ["success"]
 
+    @call_persist_after
     def move_data(self):
         if len(self.path) == 2:
             DbUtils.getInstance().move(self.path[0], self.path[1])
-            DbUtils.getInstance().persist()
             return ["success"]
 
     def find(self):
@@ -146,6 +143,4 @@ class Actions():
         try:
             return {"AUTHORIZATION": self.user_privilege(self.path[0])}
         except:
-            pass
             return {"AUTHORIZATION": False}
-

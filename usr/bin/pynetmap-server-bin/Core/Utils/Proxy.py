@@ -2,13 +2,12 @@
 
 import os
 import sys
-import logging
-logging.basicConfig(filename="/dev/null")
 
-#from model import Model
-from Core.Database.DbUtils import DbUtils
 from Constants import *
+from Core.Database.DbUtils import DbUtils
 from Core.Utils.SSHLib import SSHLib
+
+
 class Proxy:
 
     def __init__(self, id):
@@ -17,14 +16,17 @@ class Proxy:
         localport = None
         try:
             port = db[DB_BASE,  id, KEY_SSH_PORT]
-            localport = sshlib.open_port(id, "22" if port == None or port == "" else port)
-            ip = "127.0.0.1" 
+            localport = sshlib.open_port(
+                id, "22" if port == None or port == "" else port)
+            ip = "127.0.0.1"
             password = db[DB_BASE, id, KEY_SSH_PASSWORD]
+            password = password.replace("!", "\\!")
+            password = password.replace("$", "\\$")
             username = db[DB_BASE, id, KEY_SSH_USER]
             target = "sshpass -p"
-            target += password.replace("!", "\\!")
+            target += password
             target += " ssh -q -tt -p "
-            target += localport 
+            target += localport
             target += " -o StrictHostKeyChecking=no "
             target += username
             target += "@"

@@ -4,9 +4,7 @@ build: clean
 			mkdir -p build &&\
 			rsync -rv --exclude=build --exclude=.git . build &&\
 			cd build &&\
-			python3 setup.py build &&\
-			python3 . \
-			"
+			python3 setup.py build"
 			
 
 clean: 

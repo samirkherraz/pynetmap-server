@@ -1,7 +1,9 @@
-from distutils.core import Extension, setup
-from Cython.Build import cythonize
 import os
-xfiles = ['__main__.py', '__init__.py', 'proxy.py','__pycache__','setup.py']
+from distutils.core import Extension, setup
+
+from Cython.Build import cythonize
+
+xfiles = ['__main__.py', '__init__.py', 'proxy.py', '__pycache__', 'setup.py']
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CURRENTDIR = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
 if CURRENTDIR != "build":
@@ -25,7 +27,8 @@ for d in SUBDIRS:
                     f'rm {d}/{module_dir}/{mname}.* ; mv ./build/lib*/{d}/{module_dir}/{mname}* {d}/{module_dir}/{mname}.so ')
 
 
-SUBFILES = [x for x in os.listdir(BASE_DIR) if x.endswith('.py') and x not in xfiles]
+SUBFILES = [x for x in os.listdir(
+    BASE_DIR) if x.endswith('.py') and x not in xfiles]
 
 for f in SUBFILES:
     mname = f.replace('.py', '')

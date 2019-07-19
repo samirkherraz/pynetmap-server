@@ -1,14 +1,21 @@
 
-from Core.Database.Table import Table
-from Core.Database.Database import Database
-from Constants import *
-from Core.Database.Table import Table
-from shutil import copyfile
 import codecs
+from shutil import copyfile
+
+from Constants import *
+from Core.Database.Database import Database
+from Core.Database.Table import Table
 from Core.Utils.Logging import getLogger
+
 logging = getLogger(__package__)
 
 
+def call_persist_after(f):
+    def decorate(*args, **kwargs):
+        ret = f(*args, **kwargs)
+        DbUtils.getInstance().persist()
+        return ret
+    return decorate
 
 
 class DbUtils:
@@ -41,9 +48,9 @@ class DbUtils:
         for (name, _, persist, secret) in DbUtils.__TABLES__:
             try:
                 copyfile("/var/lib/pynetmap/"+name+".bin",
-                        "/var/lib/pynetmap/"+name+".bin.bak")
+                         "/var/lib/pynetmap/"+name+".bin.bak")
                 copyfile("/var/lib/pynetmap/"+name+".json",
-                        "/var/lib/pynetmap/"+name+".json.bak")
+                         "/var/lib/pynetmap/"+name+".json.bak")
             except:
                 pass
             try:
@@ -58,4 +65,4 @@ class DbUtils:
                 os.remove("/var/lib/pynetmap/"+name+".json")
                 logging.info(f'Encrypted  {name}')
             except:
-                pass    
+                pass
