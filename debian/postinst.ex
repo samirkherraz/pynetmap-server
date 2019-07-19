@@ -1,13 +1,13 @@
 #!/bin/bash
 
+pip3 install proxmoxer zabbix_api requests paramiko  
+
 chmod +x /usr/bin/pynetmap-server
 chmod +x /usr/bin/pynetmap-server-bin/*
 echo " -- [ CLEANUP ] -- "
 
 userdel pynetmap 
-
-grep -v "# PyNetMAP" /etc/ssh/sshd_config > /etc/ssh/sshd_config.back
-mv  /etc/ssh/sshd_config.back /etc/ssh/sshd_config
+sed -i '/# PyNetMAP/d' /etc/ssh/sshd_config
 echo " -- [ SETUP ] -- "
 groupadd pynetmap
 useradd -d /var/lib/pynetmap/ -g pynetmap pynetmap
@@ -21,3 +21,4 @@ echo "      ForceCommand /usr/bin/pynetmap-proxy # PyNetMAP" >> /etc/ssh/sshd_co
 systemctl restart ssh
 systemctl daemon-reload
 systemctl enable pynetmap-server
+systemctl start pynetmap-server

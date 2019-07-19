@@ -18,6 +18,17 @@
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
+import getpass
+import os
+import select
+import socket
+import sys
+from optparse import OptionParser
+
+import paramiko
+
+from Core.Utils.Logging import getLogger
+
 """
 Sample script showing how to do local port forwarding over paramiko.
 
@@ -26,20 +37,14 @@ forwarding (the openssh -L option) from a local port through a tunneled
 connection to a destination reachable from the SSH server machine.
 """
 
-import getpass
-import os
-import socket
-import select
+logging = getLogger(__package__)
+
 
 try:
     import SocketServer
 except ImportError:
     import socketserver as SocketServer
 
-import sys
-from optparse import OptionParser
-
-import paramiko
 
 SSH_PORT = 22
 DEFAULT_PORT = 4000
