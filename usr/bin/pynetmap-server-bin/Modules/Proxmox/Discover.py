@@ -174,7 +174,7 @@ class Discover:
 
             for elm in DbUtils.getInstance().find_children(id):
                 if elm not in FOUND:
-                    DbUtils.getInstance().delete(id, elm)
+                    DbUtils.getInstance().delete(elm)
         except:
             pass
             logging.warning(f'UNABLE TO ACCESS PVE')

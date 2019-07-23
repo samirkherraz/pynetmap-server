@@ -86,10 +86,9 @@ class Actions():
 
     @call_persist_after
     def delete_data(self):
-        if len(self.path) == 2:
-            DbUtils.getInstance().delete(self.path[0], self.path[1])
-        elif len(self.path) == 1:
-            DbUtils.getInstance().delete(None, self.path[0])
+        print(self.path)
+        if len(self.path) == 1:
+            DbUtils.getInstance().delete(self.path[0])
         return ["success"]
 
     @call_persist_after
