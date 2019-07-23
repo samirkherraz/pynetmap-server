@@ -19,7 +19,7 @@ logging.config.dictConfig({
 def getLogger(package, compenent="/"):
     from Constants import LOGGING
     logger = logging.getLogger(package)
-    if str(package+compenent) not in LOGGERS:
+    if f'{package}{compenent}' not in LOGGERS:
         logger.handlers.clear()
         handler = logging.StreamHandler(sys.stdout)
         compenent = compenent + \
@@ -30,5 +30,5 @@ def getLogger(package, compenent="/"):
         if LOGGING:
             logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
-        LOGGERS.append(str(package+compenent))
+        LOGGERS.append(f'{package}{compenent}')
     return logger

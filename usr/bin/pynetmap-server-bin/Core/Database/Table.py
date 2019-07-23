@@ -93,15 +93,9 @@ class Table:
                     self._changed = True
             else:
                 del self._head
-
-    def delete(self, key):
-        with self._lock:
-            try:
-                del self._head[key]
+                self._head = dict()
                 self._changed = True
-                return True
-            except:
-                return False
+
 
     def cleanup(self, lst=None):
         with self._lock:

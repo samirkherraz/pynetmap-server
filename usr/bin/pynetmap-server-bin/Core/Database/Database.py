@@ -57,8 +57,9 @@ class Database:
         elif type(name) is tuple:
             t, *others = name
         elif type(name) is list:
-            t = name.pop(0)
-            others = name
+            copyname = name.copy()
+            t = copyname.pop(0)
+            others = copyname
 
         return self._tables[t][others]
 
@@ -69,8 +70,9 @@ class Database:
         elif type(name) is tuple:
             t, *others = name
         elif type(name) is list:
-            t = name.pop(0)
-            others = name
+            copyname = name.copy()
+            t = copyname.pop(0)
+            others = copyname
         self._write_running.wait()
         self._tables[t][others] = value
 
@@ -82,77 +84,54 @@ class Database:
         elif type(name) is tuple:
             t, *others = name
         elif type(name) is list:
-            t = name.pop(0)
-            others = name
+            copyname = name.copy()
+            t = copyname.pop(0)
+            others = copyname
         self._write_running.wait()
         del self._tables[t][others]
 
     def _gen_id(self):
         return "EL_"+str(str(time.time()))+''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
 
-    def create(self, parent_id=None, newid=None, lst=None):
-        if lst == None:
-            lst = self._tables[DB_STRUCT]
-        if newid == None:
+    def create(self, parent_id=None, newid=None):
+        self._write_running.wait()
+        if newid is None:
             newid = self._gen_id()
-        if parent_id == None:
-            self._write_running.wait()
-            self._tables[DB_STRUCT][newid] = {}
+        if parent_id is None:
+            path = [DB_STRUCT,newid]
+            self[path] = {}
             self.reindex()
             return newid
         else:
-            for key in list(lst.keys()):
-                if key == parent_id:
-                    self._write_running.wait()
-                    lst[key][newid] = {}
-                    self.reindex()
-                    return newid
-                elif self.create(parent_id, newid, lst[key]):
-                    return newid
-        return None
-
-    def move(self, id, parentid, elm=None, lst=None):
-        if lst == None:
-            lst = self._tables[DB_STRUCT]
-            path = self.find_path(id)
-            elm = lst
-            par = None
-            elmid = None
-            for e in path:
-                par = elm
-                elmid = e
-                elm = par[elmid]
-            del par[elmid]
-
-        for key in list(lst.keys()):
-            if key == parentid:
-                self._write_running.wait()
-                lst[key][id] = elm
-                self.reindex()
-                return True
-            elif self.move(id, parentid, elm, lst[key]):
-                return True
-
-        return False
-
-    def delete(self, parent_id, newid, lst=None):
-        if lst == None:
-            lst = self._tables[DB_STRUCT]
-        if parent_id == None:
-            self._write_running.wait()
-            self._tables[DB_STRUCT].delete(newid)
+            path = self.find_path(parent_id)
+            path.insert(0,DB_STRUCT)
+            path.append(newid)
+            self[path] = {}
             self.reindex()
-            return True
-        else:
-            for key in list(lst.keys()):
-                if key == parent_id:
-                    self._write_running.wait()
-                    del lst[key][newid]
-                    self.reindex()
-                    return True
-                elif self.delete(parent_id, newid, lst[key]):
-                    return True
-        return False
+            return newid
+
+
+
+    def move(self, id, parentid):
+        self._write_running.wait()
+        path = self.find_path(id)
+        path.insert(0, DB_STRUCT)
+        data = self[path]
+        del self[path]
+        newpath = self.find_path(parentid)
+        newpath.insert(0, DB_STRUCT)
+        newpath.append(id)
+        self[newpath] = data
+        self.reindex()
+        
+    def delete(self, id):
+        self._write_running.wait()
+        path = self.find_path(id)
+        path.insert(0, DB_STRUCT)
+        del self[path]
+        self.reindex()
+
+        
 
     def find(self, table, attr, value):
         out = []
