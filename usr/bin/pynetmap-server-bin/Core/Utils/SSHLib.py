@@ -89,11 +89,10 @@ class SSHLib:
                 tuser = str(self.db[DB_BASE, tunnel, KEY_TUNNEL_USER]).strip()
                 tpass = str(self.db[DB_BASE, tunnel,
                                     KEY_TUNNEL_PASSWORD]).strip()
-                tpass = tpass.replace("!", "\\!")
-                tpass = tpass.replace("$", "\\$")
-                source = "sshpass -p"
+                tpass = tpass.replace("'", "\\'")
+                source = "sshpass -p'"
                 source += tpass
-                source += " ssh -p "
+                source += "' ssh -p "
                 source += ("22" if tport == None or tport ==
                            "" else str(tport))
                 source += " -o StrictHostKeyChecking=no "

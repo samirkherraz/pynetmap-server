@@ -20,12 +20,11 @@ class Proxy:
                 id, "22" if port == None or port == "" else port)
             ip = "127.0.0.1"
             password = db[DB_BASE, id, KEY_SSH_PASSWORD]
-            password = password.replace("!", "\\!")
-            password = password.replace("$", "\\$")
+            password = password.replace("'", "\\'")
             username = db[DB_BASE, id, KEY_SSH_USER]
-            target = "sshpass -p"
+            target = "sshpass -p'"
             target += password
-            target += " ssh -q -tt -p "
+            target += "' ssh -q -tt -p "
             target += localport
             target += " -o StrictHostKeyChecking=no "
             target += username
