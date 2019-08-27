@@ -22,3 +22,5 @@ systemctl restart ssh
 systemctl daemon-reload
 systemctl enable pynetmap-server
 systemctl start pynetmap-server
+
+exit 0
